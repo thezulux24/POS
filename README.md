@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="front/public/images/image.png" width="200" alt="Logo POS">
+</p>
+
 # Sistema POS - MiniProyecto 1
 
 Este es el **MiniProyecto 1** de la materia **Procesos y Diseño de Software**.
