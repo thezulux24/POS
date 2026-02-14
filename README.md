@@ -22,6 +22,83 @@ El sistema es un punto de venta (POS) en línea que permite la gestión de inven
 ### Base de Datos & ORM: PostgreSQL + Prisma
 - **Por qué:** **PostgreSQL** es un motor de base de datos relacional altamente confiable para manejar transacciones de ventas. **Prisma** se integra perfectamente con NestJS para ofrecer un acceso a datos con seguridad de tipos (Type-safe), facilitando las migraciones y el modelado de la base de datos.
 
+## Modelo de Base de Datos
+A continuación se presenta el diagrama de entidad-relación del sistema:
+
+```mermaid
+erDiagram
+    USER ||--o{ SALE : "realiza (vendedor)"
+    CATEGORY ||--o{ PRODUCT : "contiene"
+    PROVIDER |o--o{ PRODUCT : "suministra"
+    CUSTOMER |o--o{ SALE : "compra"
+    SALE ||--|{ SALE_ITEM : "contiene"
+    PRODUCT ||--|{ SALE_ITEM : "incluido en"
+
+    USER {
+        Int id PK
+        String nombre
+        String email UK
+        String password_hash
+        Role rol
+        Boolean activo
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    CATEGORY {
+        Int id PK
+        String nombre
+        Boolean activo
+    }
+
+    PROVIDER {
+        Int id PK
+        String nombre
+        String telefono
+        String email
+        String direccion
+        Boolean activo
+    }
+
+    PRODUCT {
+        Int id PK
+        String codigo UK
+        String nombre
+        Decimal precio
+        Int stock
+        Boolean activo
+        Int categoryId FK
+        Int providerId FK
+    }
+
+    CUSTOMER {
+        Int id PK
+        String nombre
+        String telefono
+        String email
+        Boolean activo
+    }
+
+    SALE {
+        Int id PK
+        Int vendedorId FK
+        Int clienteId FK
+        Decimal total
+        DateTime fecha
+        String estado
+    }
+
+    SALE_ITEM {
+        Int id PK
+        Int saleId FK
+        Int productId FK
+        Int cantidad
+        Decimal precio_unitario
+        Decimal subtotal
+    }
+```
+
+
 
 ## Documentación Técnica
 - [Guía de Base de Datos (Docker / Prisma)](GUIABASEDEDATOS.md)
@@ -63,3 +140,26 @@ npm run start:dev
 cd front
 npm run dev
 ```
+
+---
+
+## Flujo de Trabajo y Recomendaciones
+
+Para mantener el proyecto organizado y evitar conflictos, se recomienda seguir estas pautas:
+
+### 1. Sincronización de Ramas
+Antes de comenzar a trabajar en cualquier nueva funcionalidad o corrección:
+- **Siempre** asegúrese de estar en su rama de trabajo.
+- Realice un `pull` de la rama `dev` para tener los últimos cambios integrados:
+  ```powershell
+  git pull origin dev
+  ```
+
+### 2. Gestión de Ramas
+- No trabaje directamente sobre `main` o `dev`.
+
+### 3. Commits y Mensajes
+- Realice commits frecuentes con mensajes clarosl (ej. `feat: agregar modelo de cliente`, `fix: corregir error en login`).
+
+### 4. Base de Datos
+- Si realiza cambios en el archivo `schema.prisma`, recuerde ejecutar `npx prisma migrate dev` para aplicar los cambios localmente y notificar al equipo, ya que esto generará una nueva carpeta de migración que debe subirse al repo. *En la medida de lo posible, Brayan será el encargado de ejecutar cualquier cambio en la base de datos.*
