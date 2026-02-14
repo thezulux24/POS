@@ -5,11 +5,94 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  VENDEDOR
+}
+
+model User {
+  id            Int      @id @default(autoincrement())
+  nombre        String
+  email         String   @unique
+  password_hash String
+  rol           Role     @default(VENDEDOR)
+  activo        Boolean  @default(true)
+  sales         Sale[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Category {
+  id       Int       @id @default(autoincrement())
+  nombre   String
+  activo   Boolean   @default(true)
+  products Product[]
+}
+
+model Provider {
+  id       Int       @id @default(autoincrement())
+  nombre   String
+  telefono String?
+  email    String?
+  direccion String?
+  activo   Boolean   @default(true)
+  products Product[]
+}
+
+model Product {
+  id          Int        @id @default(autoincrement())
+  codigo      String     @unique
+  nombre      String
+  precio      Decimal    @db.Decimal(10, 2)
+  stock       Int        @default(0)
+  activo      Boolean    @default(true)
+  category    Category   @relation(fields: [categoryId], references: [id])
+  categoryId  Int
+  provider    Provider?  @relation(fields: [providerId], references: [id])
+  providerId  Int?
+  saleItems   SaleItem[]
+
+  @@index([codigo])
+}
+
+model Customer {
+  id       Int      @id @default(autoincrement())
+  nombre   String
+  telefono String?
+  email    String?
+  activo   Boolean  @default(true)
+  sales    Sale[]
+}
+
+model Sale {
+  id         Int        @id @default(autoincrement())
+  vendedor   User       @relation(fields: [vendedorId], references: [id])
+  vendedorId Int
+  cliente    Customer?  @relation(fields: [clienteId], references: [id])
+  clienteId  Int?
+  total      Decimal    @db.Decimal(10, 2)
+  fecha      DateTime   @default(now())
+  estado     String     @default("COMPLETED")
+  saleItems  SaleItem[]
+
+  @@index([fecha])
+}
+
+model SaleItem {
+  id             Int     @id @default(autoincrement())
+  sale           Sale    @relation(fields: [saleId], references: [id])
+  saleId         Int
+  product        Product @relation(fields: [productId], references: [id])
+  productId      Int
+  cantidad       Int
+  precio_unitario Decimal @db.Decimal(10, 2)
+  subtotal       Decimal @db.Decimal(10, 2)
 }

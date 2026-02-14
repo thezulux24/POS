@@ -1,0 +1,7 @@
+.agents/
+node_modules/
+.env
+dist/
+build/
+.vscode/
+*.log
