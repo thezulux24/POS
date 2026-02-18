@@ -12,6 +12,10 @@ const AdminTerminal = () => {
         navigate('/login');
     };
 
+    const goToProducts = () => {
+        navigate('/admin/products');
+    };
+
     return (
         <div className="min-h-screen bg-[#0f1115] text-white flex flex-col items-center justify-center p-8">
             <div className="bg-[#1a1d23] border border-[#2d3139] rounded-2xl p-12 max-w-2xl w-full text-center space-y-6 shadow-2xl">
@@ -36,6 +40,13 @@ const AdminTerminal = () => {
                 >
                     <LogOut size={20} />
                     Cerrar sesión
+                </button>
+
+                <button
+                    onClick={goToProducts}
+                    className="flex items-center justify-center gap-3 w-full bg-[#fbbf24] text-black font-semibold py-3 rounded-xl hover:bg-[#f59e0b] transition-all shadow-lg"
+                >
+                    Gestión de Productos
                 </button>
             </div>
         </div>
