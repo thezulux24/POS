@@ -46,10 +46,10 @@ const AdminTerminal = () => {
   const user = authService.getCurrentUser();
   const navigate = useNavigate();
 
-    const handleLogout = () => {
-        authService.logout();
-        navigate('/login');
-    };
+  const handleLogout = () => {
+    authService.logout();
+    navigate('/login');
+  };
 
   return (
     <div className="terminal-page">
@@ -178,9 +178,79 @@ const AdminTerminal = () => {
                   <Plus size={14} />
                   Crear
                 </button>
-            </div>
+              </div>
+
+              <div className="terminal-field-group">
+                <label className="terminal-mini-label">Nombre de categoria</label>
+                <div className="terminal-field">
+                  <Tags size={15} />
+                  <input type="text" placeholder="Ej. Licores" readOnly value="" />
+                </div>
+              </div>
+
+              <div className="terminal-table terminal-table-scroll">
+                <div className="terminal-head" style={{ '--columns': '1.4fr 0.7fr 0.9fr 0.8fr' }}>
+                  <span>Nombre</span>
+                  <span>Productos</span>
+                  <span>Estado</span>
+                  <span>Acciones</span>
+                </div>
+
+                {CATEGORIES.map((category) => (
+                  <div key={category.name} className="terminal-row" style={{ '--columns': '1.4fr 0.7fr 0.9fr 0.8fr' }}>
+                    <span>{category.name}</span>
+                    <span>{category.products}</span>
+                    <div>
+                      <span className={`terminal-pill ${category.active ? 'terminal-pill-ok' : 'terminal-pill-muted'}`}>
+                        {category.active ? 'Activa' : 'Inactiva'}
+                      </span>
+                    </div>
+                    <div className="terminal-actions">
+                      <button type="button" className="terminal-icon-btn" aria-label="Editar categoria">
+                        <Pencil size={14} />
+                      </button>
+                      <button type="button" className="terminal-icon-btn terminal-icon-btn-danger" aria-label="Eliminar categoria">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="terminal-panel">
+              <h2 className="terminal-panel-title">Actividad Reciente</h2>
+              <p className="terminal-panel-sub">Movimientos de inventario y administracion.</p>
+
+              <ul className="terminal-list">
+                {INVENTORY_UPDATES.map((update) => (
+                  <li key={`${update.action}-${update.time}`} className="terminal-list-item">
+                    <div>
+                      <strong>{update.action}</strong>
+                      <span>{update.target}</span>
+                      <span>{update.user}</span>
+                    </div>
+                    <span className="terminal-status-tag">{update.time}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="terminal-summary-strip">
+                <div>
+                  <Warehouse size={16} />
+                  <span>Inventario total: 1,142 unidades</span>
+                </div>
+                <div>
+                  <ShieldCheck size={16} />
+                  <span>Validaciones de stock activas</span>
+                </div>
+              </div>
+            </section>
+          </div>
         </div>
-    );
+      </div>
+    </div>
+  );
 };
 
 export default AdminTerminal;
