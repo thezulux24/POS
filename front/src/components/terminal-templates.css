@@ -264,7 +264,7 @@
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.03em;
-  cursor: default;
+  cursor: pointer;
 }
 
 .terminal-primary-btn {
@@ -318,6 +318,10 @@
   font-size: 13px;
   color: var(--text-main);
   font-family: var(--body-font);
+}
+
+.terminal-field select {
+  cursor: pointer;
 }
 
 .terminal-field input::placeholder,
@@ -425,7 +429,17 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  cursor: default;
+  cursor: pointer;
+}
+
+.terminal-input-action {
+  border: none;
+  background: transparent;
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  cursor: pointer;
 }
 
 .terminal-icon-btn-fill {
@@ -565,6 +579,93 @@
   font-size: 12px;
   line-height: 1.42;
   white-space: pre-wrap;
+}
+
+.terminal-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(2px);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  z-index: 20;
+}
+
+.terminal-modal {
+  width: min(640px, 100%);
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1px solid var(--border-soft);
+  box-shadow: 0 30px 70px rgba(15, 23, 42, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 18px;
+  animation: terminal-fade-up 0.4s ease;
+}
+
+.terminal-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.terminal-modal-header h3 {
+  margin: 0;
+  font-family: var(--header-font);
+  font-size: 22px;
+}
+
+.terminal-modal-header p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.terminal-modal-close {
+  border: 1px solid var(--border-soft);
+  background: #fff;
+  color: var(--text-muted);
+  border-radius: 10px;
+  width: 32px;
+  height: 32px;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.terminal-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.terminal-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.terminal-modal-error {
+  color: var(--warning);
+  font-size: 13px;
+  margin: 0;
+}
+
+.terminal-modal-success {
+  color: var(--ok);
+  font-size: 13px;
+  margin: 0;
+}
+
+.terminal-checkbox {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  color: var(--text-main);
 }
 
 @keyframes terminal-fade-up {

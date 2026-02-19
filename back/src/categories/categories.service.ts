@@ -46,6 +46,17 @@ export class CategoriesService {
 
     return this.prisma.category.findMany({
       where,
+      include: {
+        _count: {
+          select: {
+            products: {
+              where: {
+                activo: true,
+              },
+            },
+          },
+        },
+      },
       orderBy: {
         nombre: 'asc',
       },

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   LogOut,
@@ -15,14 +15,8 @@ import {
   Wallet,
 } from 'lucide-react';
 import { authService } from '../services/authService';
+import { productService } from '../services/productService';
 import './terminal-templates.css';
-
-const PRODUCT_RESULTS = [
-  { code: 'PROD-001', name: 'Audifonos Bluetooth', stock: 50, price: '$150,000' },
-  { code: 'PROD-003', name: 'Caja de Chocolates', stock: 100, price: '$25,000' },
-  { code: 'PROD-010', name: 'Cable USB-C', stock: 32, price: '$18,000' },
-  { code: 'PROD-022', name: 'Termo 600ml', stock: 11, price: '$31,000' },
-];
 
 const CART_ITEMS = [
   { name: 'Audifonos Bluetooth', qty: 1, price: '$150,000', subtotal: '$150,000' },
@@ -35,10 +29,51 @@ const TICKET_PREVIEW = `POS - TIQUETE\nVenta #000145\n--------------------------
 const VendorTerminal = () => {
   const user = authService.getCurrentUser();
   const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const priceFormatter = useMemo(
+    () => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }),
+    [],
+  );
 
   const handleLogout = () => {
     authService.logout();
     navigate('/login');
+  };
+
+  const handleSearch = async () => {
+    const trimmedQuery = searchQuery.trim();
+    if (!trimmedQuery) {
+      setResults([]);
+      setError('Ingresa un codigo o nombre para buscar.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+      const data = await productService.search(trimmedQuery, 20);
+      setResults(Array.isArray(data) ? data : []);
+      if (!data || data.length === 0) {
+        setError('No se encontraron productos.');
+      }
+    } catch (err) {
+      const message = err.response?.data?.message || 'Error al buscar productos.';
+      setError(message);
+      setResults([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleKeyDown = (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      handleSearch();
+    }
   };
 
   return (
@@ -79,13 +114,28 @@ const VendorTerminal = () => {
 
             <div className="terminal-toolbar terminal-toolbar-vendor">
               <label className="terminal-field">
-                <Search size={15} />
-                <input type="text" placeholder="Buscar producto" readOnly value="" />
+                <button type="button" className="terminal-input-action" onClick={handleSearch} aria-label="Buscar">
+                  <Search size={15} />
+                </button>
+                <input
+                  type="text"
+                  placeholder="Buscar producto"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  onKeyDown={handleKeyDown}
+                />
               </label>
-              <button type="button" className="terminal-primary-btn terminal-primary-btn-sm">
-                Buscar
+              <button
+                type="button"
+                className="terminal-primary-btn terminal-primary-btn-sm"
+                onClick={handleSearch}
+                disabled={loading}
+              >
+                {loading ? 'Buscando...' : 'Buscar'}
               </button>
             </div>
+
+            {error && <p className="terminal-panel-sub">{error}</p>}
 
             <div className="terminal-table terminal-table-scroll">
               <div className="terminal-head" style={{ '--columns': '0.9fr 1.6fr 0.7fr 0.8fr 0.8fr' }}>
@@ -96,12 +146,12 @@ const VendorTerminal = () => {
                 <span>Agregar</span>
               </div>
 
-              {PRODUCT_RESULTS.map((product) => (
-                <div key={product.code} className="terminal-row" style={{ '--columns': '0.9fr 1.6fr 0.7fr 0.8fr 0.8fr' }}>
-                  <span>{product.code}</span>
-                  <span>{product.name}</span>
+              {results.map((product) => (
+                <div key={product.id} className="terminal-row" style={{ '--columns': '0.9fr 1.6fr 0.7fr 0.8fr 0.8fr' }}>
+                  <span>{product.codigo}</span>
+                  <span>{product.nombre}</span>
                   <span>{product.stock}</span>
-                  <span>{product.price}</span>
+                  <span>{priceFormatter.format(Number(product.precio))}</span>
                   <div className="terminal-actions">
                     <button type="button" className="terminal-icon-btn terminal-icon-btn-fill" aria-label="Agregar producto">
                       <Plus size={14} />
