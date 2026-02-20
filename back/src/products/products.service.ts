@@ -16,6 +16,11 @@ export interface ProductFilters {
   onlyWithStock?: boolean;
 }
 
+export interface ProviderFilters {
+  search?: string;
+  includeInactive?: boolean;
+}
+
 @Injectable()
 export class ProductsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -122,6 +127,32 @@ export class ProductsService {
       },
       orderBy: [{ stock: 'desc' }, { nombre: 'asc' }],
       take,
+    });
+  }
+
+  async findProviders(filters: ProviderFilters) {
+    const where: Prisma.ProviderWhereInput = {};
+
+    if (!filters.includeInactive) {
+      where.activo = true;
+    }
+
+    if (filters.search && filters.search.trim()) {
+      where.nombre = {
+        contains: filters.search.trim(),
+        mode: 'insensitive',
+      };
+    }
+
+    return this.prisma.provider.findMany({
+      where,
+      select: {
+        id: true,
+        nombre: true,
+      },
+      orderBy: {
+        nombre: 'asc',
+      },
     });
   }
 

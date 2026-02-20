@@ -15,6 +15,7 @@ import {
 import { authService } from '../services/authService';
 import { categoryService } from '../services/categoryService';
 import { productService } from '../services/productService';
+import { providerService } from '../services/providerService';
 import './terminal-templates.css';
 
 const DASHBOARD_STATS = [
@@ -42,6 +43,7 @@ const AdminTerminal = () => {
   const [createError, setCreateError] = useState('');
   const [createSuccess, setCreateSuccess] = useState('');
   const [categories, setCategories] = useState([]);
+  const [providers, setProviders] = useState([]);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [sortFilter, setSortFilter] = useState('nombre-asc');
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -146,8 +148,17 @@ const AdminTerminal = () => {
     }
   };
 
+  const loadProviders = async () => {
+    try {
+      const data = await providerService.list({ includeInactive: 'false' });
+      setProviders(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setProviders([]);
+    }
+  };
+
   useEffect(() => {
-    loadCategories();
+    void Promise.all([loadCategories(), loadProviders()]);
   }, []);
 
   const loadProducts = async ({ search, categoryId } = {}) => {
@@ -182,10 +193,10 @@ const AdminTerminal = () => {
   };
 
   useEffect(() => {
-    if (isCreateOpen) {
-      loadCategories();
+    if (isCreateOpen || isEditOpen) {
+      void Promise.all([loadCategories(), loadProviders()]);
     }
-  }, [isCreateOpen]);
+  }, [isCreateOpen, isEditOpen]);
 
   useEffect(() => {
     loadProducts();
@@ -361,7 +372,6 @@ const AdminTerminal = () => {
     setIsEditOpen(true);
     setEditError('');
     setEditSuccess('');
-    loadCategories();
     setEditForm({
       id: product.id,
       codigo: product.codigo ?? '',
@@ -869,14 +879,14 @@ const AdminTerminal = () => {
                   </select>
                 </label>
                 <label className="terminal-field">
-                  <input
-                    type="number"
-                    min="1"
-                    step="1"
-                    placeholder="ID proveedor (opcional)"
-                    value={createForm.providerId}
-                    onChange={handleCreateChange('providerId')}
-                  />
+                  <select value={createForm.providerId} onChange={handleCreateChange('providerId')}>
+                    <option value="">Sin proveedor</option>
+                    {providers.map((provider) => (
+                      <option key={provider.id} value={provider.id}>
+                        {provider.nombre}
+                      </option>
+                    ))}
+                  </select>
                 </label>
               </div>
 
@@ -971,14 +981,14 @@ const AdminTerminal = () => {
                   </select>
                 </label>
                 <label className="terminal-field">
-                  <input
-                    type="number"
-                    min="1"
-                    step="1"
-                    placeholder="ID proveedor (opcional)"
-                    value={editForm.providerId}
-                    onChange={handleEditChange('providerId')}
-                  />
+                  <select value={editForm.providerId} onChange={handleEditChange('providerId')}>
+                    <option value="">Sin proveedor</option>
+                    {providers.map((provider) => (
+                      <option key={provider.id} value={provider.id}>
+                        {provider.nombre}
+                      </option>
+                    ))}
+                  </select>
                 </label>
               </div>
 

@@ -29,7 +29,11 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-import { type ProductFilters, ProductsService } from './products.service';
+import {
+  type ProductFilters,
+  type ProviderFilters,
+  ProductsService,
+} from './products.service';
 
 @ApiTags('Products')
 @ApiBearerAuth('session-token')
@@ -64,6 +68,30 @@ export class ProductsController {
   search(@Query('q') query?: string, @Query('limit') limit?: string) {
     const parsedLimit = this.parseOptionalInt(limit, 'limit');
     return this.productsService.search(query, parsedLimit);
+  }
+
+  @Get('providers')
+  @Roles(Role.ADMIN, Role.VENDEDOR)
+  @ApiOperation({ summary: 'Listar proveedores para productos' })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({
+    name: 'includeInactive',
+    required: false,
+    type: String,
+    example: 'false',
+  })
+  @ApiOkResponse({ description: 'Listado de proveedores.' })
+  @ApiBadRequestResponse({ description: 'Filtros invalidos.' })
+  findProviders(
+    @Query('search') search?: string,
+    @Query('includeInactive') includeInactive?: string,
+  ) {
+    const filters: ProviderFilters = {
+      search,
+      includeInactive: this.parseBoolean(includeInactive),
+    };
+
+    return this.productsService.findProviders(filters);
   }
 
   @Get()
