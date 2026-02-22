@@ -253,6 +253,14 @@
   color: var(--text-muted);
 }
 
+.terminal-feedback-error {
+  color: var(--warning);
+}
+
+.terminal-feedback-success {
+  color: var(--ok);
+}
+
 .terminal-primary-btn,
 .terminal-ghost-btn {
   border-radius: 11px;

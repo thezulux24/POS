@@ -16,28 +16,83 @@ import {
 } from 'lucide-react';
 import { authService } from '../services/authService';
 import { productService } from '../services/productService';
+import { saleService } from '../services/saleService';
 import './terminal-templates.css';
 
-const CART_ITEMS = [
-  { name: 'Audifonos Bluetooth', qty: 1, price: '$150,000', subtotal: '$150,000' },
-  { name: 'Caja de Chocolates', qty: 2, price: '$25,000', subtotal: '$50,000' },
-  { name: 'Cable USB-C', qty: 1, price: '$18,000', subtotal: '$18,000' },
-];
+const IVA_RATE = 0.19;
+const MAX_SEARCH_RESULTS = 20;
 
-const TICKET_PREVIEW = `POS - TIQUETE\nVenta #000145\n-----------------------------\nAudifonos Bluetooth  x1\nCaja de Chocolates   x2\nCable USB-C          x1\n-----------------------------\nSUBTOTAL: $218,000\nIVA (19%): $41,420\nTOTAL: $259,420`;
+const escapeHtml = (value) =>
+  value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
 
 const VendorTerminal = () => {
   const user = authService.getCurrentUser();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [results, setResults] = useState([]);
+  const [cartItems, setCartItems] = useState([]);
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [ticketPreview, setTicketPreview] = useState('Aun no hay ticket para mostrar.');
+  const [lastSaleId, setLastSaleId] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [searchError, setSearchError] = useState('');
+  const [saleError, setSaleError] = useState('');
+  const [saleSuccess, setSaleSuccess] = useState('');
+  const [saleLoading, setSaleLoading] = useState(false);
 
   const priceFormatter = useMemo(
     () => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }),
     [],
   );
+
+  const totals = useMemo(() => {
+    const subtotal = cartItems.reduce(
+      (accumulator, item) => accumulator + Number(item.precio) * item.quantity,
+      0,
+    );
+    const iva = subtotal * IVA_RATE;
+    const total = subtotal + iva;
+
+    return {
+      subtotal,
+      iva,
+      total,
+    };
+  }, [cartItems]);
+
+  const buildLocalTicket = (saleIdLabel = 'PREVIEW') => {
+    if (cartItems.length === 0) {
+      return 'No hay productos en el carrito para generar ticket.';
+    }
+
+    const header = [
+      'POS - TIQUETE',
+      `Venta #${saleIdLabel}`,
+      `Fecha: ${new Date().toLocaleString('es-CO')}`,
+      customerName.trim() ? `Cliente: ${customerName.trim()}` : null,
+      customerPhone.trim() ? `Telefono: ${customerPhone.trim()}` : null,
+      '-----------------------------',
+    ].filter(Boolean);
+
+    const detail = cartItems.map(
+      (item) => `${item.nombre} x${item.quantity}  ${priceFormatter.format(Number(item.precio) * item.quantity)}`,
+    );
+
+    const footer = [
+      '-----------------------------',
+      `SUBTOTAL: ${priceFormatter.format(totals.subtotal)}`,
+      `IVA (19%): ${priceFormatter.format(totals.iva)}`,
+      `TOTAL: ${priceFormatter.format(totals.total)}`,
+    ];
+
+    return [...header, ...detail, ...footer].join('\n');
+  };
 
   const handleLogout = () => {
     authService.logout();
@@ -48,25 +103,203 @@ const VendorTerminal = () => {
     const trimmedQuery = searchQuery.trim();
     if (!trimmedQuery) {
       setResults([]);
-      setError('Ingresa un codigo o nombre para buscar.');
+      setSearchError('Ingresa un codigo o nombre para buscar.');
       return;
     }
 
     try {
       setLoading(true);
-      setError('');
-      const data = await productService.search(trimmedQuery, 20);
+      setSearchError('');
+      const data = await productService.search(trimmedQuery, MAX_SEARCH_RESULTS);
       setResults(Array.isArray(data) ? data : []);
       if (!data || data.length === 0) {
-        setError('No se encontraron productos.');
+        setSearchError('No se encontraron productos.');
       }
     } catch (err) {
       const message = err.response?.data?.message || 'Error al buscar productos.';
-      setError(message);
+      setSearchError(message);
       setResults([]);
     } finally {
       setLoading(false);
     }
+  };
+
+  const addToCart = (product) => {
+    setSaleError('');
+    setSaleSuccess('');
+
+    setCartItems((previous) => {
+      const existing = previous.find((item) => item.productId === product.id);
+      const maxStock = Number(product.stock);
+      if (existing && existing.quantity >= maxStock) {
+        setSaleError('No hay mas stock disponible para este producto.');
+        return previous;
+      }
+
+      if (existing) {
+        return previous.map((item) =>
+          item.productId === product.id
+            ? {
+                ...item,
+                quantity: item.quantity + 1,
+                stock: maxStock,
+              }
+            : item,
+        );
+      }
+
+      if (maxStock < 1) {
+        setSaleError('El producto no tiene stock disponible.');
+        return previous;
+      }
+
+      return [
+        ...previous,
+        {
+          productId: product.id,
+          codigo: product.codigo,
+          nombre: product.nombre,
+          precio: Number(product.precio),
+          stock: maxStock,
+          quantity: 1,
+        },
+      ];
+    });
+  };
+
+  const incrementItem = (productId) => {
+    setCartItems((previous) =>
+      previous.map((item) => {
+        if (item.productId !== productId) {
+          return item;
+        }
+
+        if (item.quantity >= item.stock) {
+          setSaleError('No hay mas stock disponible para este producto.');
+          return item;
+        }
+
+        return { ...item, quantity: item.quantity + 1 };
+      }),
+    );
+  };
+
+  const decrementItem = (productId) => {
+    setCartItems((previous) =>
+      previous
+        .map((item) =>
+          item.productId === productId ? { ...item, quantity: Math.max(0, item.quantity - 1) } : item,
+        )
+        .filter((item) => item.quantity > 0),
+    );
+  };
+
+  const removeItem = (productId) => {
+    setCartItems((previous) => previous.filter((item) => item.productId !== productId));
+  };
+
+  const handleRegisterSale = async () => {
+    if (cartItems.length === 0) {
+      setSaleError('Agrega productos al carrito antes de registrar la venta.');
+      return;
+    }
+
+    try {
+      setSaleLoading(true);
+      setSaleError('');
+      setSaleSuccess('');
+
+      const payload = {
+        items: cartItems.map((item) => ({
+          productId: item.productId,
+          cantidad: item.quantity,
+        })),
+        estado: 'COMPLETED',
+      };
+
+      const response = await saleService.create(payload);
+      const saleId = response?.id;
+      const preview = response?.ticketPreview || buildLocalTicket(saleId ? String(saleId) : 'OK');
+
+      setTicketPreview(preview);
+      setLastSaleId(saleId ?? null);
+      setCartItems([]);
+      setSaleSuccess(`Venta registrada correctamente${saleId ? ` (#${saleId})` : ''}.`);
+    } catch (err) {
+      const message = err.response?.data?.message || 'Error al registrar la venta.';
+      setSaleError(Array.isArray(message) ? message.join(', ') : message);
+    } finally {
+      setSaleLoading(false);
+    }
+  };
+
+  const handleGenerateTicket = async () => {
+    if (lastSaleId) {
+      try {
+        setSaleError('');
+        const response = await saleService.getTicket(lastSaleId);
+        const printableText = response?.printableText;
+        if (printableText) {
+          setTicketPreview(printableText);
+          return;
+        }
+      } catch (err) {
+        const message = err.response?.data?.message || 'No fue posible obtener el ticket del backend.';
+        setSaleError(Array.isArray(message) ? message.join(', ') : message);
+      }
+    }
+
+    setTicketPreview(buildLocalTicket(lastSaleId ? String(lastSaleId) : 'PREVIEW'));
+  };
+
+  const handlePrintTicket = () => {
+    if (!ticketPreview || ticketPreview === 'Aun no hay ticket para mostrar.') {
+      setSaleError('Genera un ticket antes de imprimir.');
+      return;
+    }
+
+    const printWindow = window.open('', '_blank', 'width=420,height=720');
+    if (!printWindow) {
+      setSaleError('No se pudo abrir la vista de impresion. Verifica bloqueadores de ventanas.');
+      return;
+    }
+
+    const content = escapeHtml(ticketPreview).replaceAll('\n', '<br/>');
+
+    printWindow.document.write(`
+      <!doctype html>
+      <html lang="es">
+        <head>
+          <meta charset="UTF-8" />
+          <title>Tiquete POS</title>
+          <style>
+            body {
+              font-family: Consolas, 'Courier New', monospace;
+              padding: 16px;
+              font-size: 12px;
+              color: #111827;
+            }
+            .ticket {
+              border: 1px dashed #9ca3af;
+              border-radius: 8px;
+              padding: 12px;
+              line-height: 1.45;
+              white-space: normal;
+            }
+            @media print {
+              body { margin: 0; padding: 0; }
+              .ticket { border: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="ticket">${content}</div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
   };
 
   const handleKeyDown = (event) => {
@@ -135,7 +368,7 @@ const VendorTerminal = () => {
               </button>
             </div>
 
-            {error && <p className="terminal-panel-sub">{error}</p>}
+            {searchError && <p className="terminal-panel-sub">{searchError}</p>}
 
             <div className="terminal-table terminal-table-scroll">
               <div className="terminal-head" style={{ '--columns': '0.9fr 1.6fr 0.7fr 0.8fr 0.8fr' }}>
@@ -153,7 +386,13 @@ const VendorTerminal = () => {
                   <span>{product.stock}</span>
                   <span>{priceFormatter.format(Number(product.precio))}</span>
                   <div className="terminal-actions">
-                    <button type="button" className="terminal-icon-btn terminal-icon-btn-fill" aria-label="Agregar producto">
+                    <button
+                      type="button"
+                      className="terminal-icon-btn terminal-icon-btn-fill"
+                      aria-label="Agregar producto"
+                      onClick={() => addToCart(product)}
+                      disabled={Number(product.stock) < 1}
+                    >
                       <Plus size={14} />
                     </button>
                   </div>
@@ -166,7 +405,12 @@ const VendorTerminal = () => {
                 <label className="terminal-mini-label">Cliente</label>
                 <label className="terminal-field">
                   <UserRound size={15} />
-                  <input type="text" placeholder="Nombre del cliente" readOnly value="" />
+                  <input
+                    type="text"
+                    placeholder="Nombre del cliente"
+                    value={customerName}
+                    onChange={(event) => setCustomerName(event.target.value)}
+                  />
                 </label>
               </div>
 
@@ -174,7 +418,12 @@ const VendorTerminal = () => {
                 <label className="terminal-mini-label">Telefono</label>
                 <label className="terminal-field">
                   <Phone size={15} />
-                  <input type="text" placeholder="Telefono" readOnly value="" />
+                  <input
+                    type="text"
+                    placeholder="Telefono"
+                    value={customerPhone}
+                    onChange={(event) => setCustomerPhone(event.target.value)}
+                  />
                 </label>
               </div>
             </div>
@@ -189,18 +438,47 @@ const VendorTerminal = () => {
             </div>
 
             <div className="terminal-cart-list">
-              {CART_ITEMS.map((item) => (
-                <article key={item.name} className="terminal-cart-item">
+              {cartItems.length === 0 && (
+                <article className="terminal-cart-item">
                   <div>
-                    <strong>{item.name}</strong>
-                    <span>{item.qty} x {item.price}</span>
+                    <strong>Carrito vacio</strong>
+                    <span>Agrega productos desde la busqueda.</span>
+                  </div>
+                </article>
+              )}
+
+              {cartItems.map((item) => (
+                <article key={item.productId} className="terminal-cart-item">
+                  <div>
+                    <strong>{item.nombre}</strong>
+                    <span>
+                      {item.quantity} x {priceFormatter.format(Number(item.precio))}
+                    </span>
                   </div>
                   <div className="terminal-cart-actions">
-                    <button type="button" className="terminal-icon-btn" aria-label="Disminuir cantidad">
+                    <button
+                      type="button"
+                      className="terminal-icon-btn"
+                      aria-label="Disminuir cantidad"
+                      onClick={() => decrementItem(item.productId)}
+                    >
                       <Minus size={14} />
                     </button>
-                    <strong>{item.subtotal}</strong>
-                    <button type="button" className="terminal-icon-btn terminal-icon-btn-danger" aria-label="Eliminar item">
+                    <button
+                      type="button"
+                      className="terminal-icon-btn"
+                      aria-label="Aumentar cantidad"
+                      onClick={() => incrementItem(item.productId)}
+                    >
+                      <Plus size={14} />
+                    </button>
+                    <strong>{priceFormatter.format(Number(item.precio) * item.quantity)}</strong>
+                    <button
+                      type="button"
+                      className="terminal-icon-btn terminal-icon-btn-danger"
+                      aria-label="Eliminar item"
+                      onClick={() => removeItem(item.productId)}
+                    >
                       <Trash2 size={14} />
                     </button>
                   </div>
@@ -211,39 +489,52 @@ const VendorTerminal = () => {
             <div className="terminal-cart-total">
               <div>
                 <span>Subtotal</span>
-                <strong>$218,000</strong>
+                <strong>{priceFormatter.format(totals.subtotal)}</strong>
               </div>
               <div>
                 <span>IVA (19%)</span>
-                <strong>$41,420</strong>
+                <strong>{priceFormatter.format(totals.iva)}</strong>
               </div>
               <div className="terminal-final">
                 <span>Total</span>
-                <strong>$259,420</strong>
+                <strong>{priceFormatter.format(totals.total)}</strong>
               </div>
             </div>
 
+            {(saleError || saleSuccess) && (
+              <p className={`terminal-panel-sub ${saleError ? 'terminal-feedback-error' : 'terminal-feedback-success'}`}>
+                {saleError || saleSuccess}
+              </p>
+            )}
+
             <div className="terminal-actions-bar">
-              <button type="button" className="terminal-primary-btn terminal-primary-btn-full">
+              <button
+                type="button"
+                className="terminal-primary-btn terminal-primary-btn-full"
+                onClick={handleRegisterSale}
+                disabled={saleLoading || cartItems.length === 0}
+              >
                 <ShoppingCart size={15} />
-                Registrar venta
+                {saleLoading ? 'Registrando...' : 'Registrar venta'}
               </button>
-              <button type="button" className="terminal-ghost-btn">
+              <button type="button" className="terminal-ghost-btn" onClick={handleGenerateTicket}>
                 <ReceiptText size={15} />
                 Generar ticket
               </button>
-              <button type="button" className="terminal-ghost-btn">
+              <button type="button" className="terminal-ghost-btn" onClick={handlePrintTicket}>
                 <Printer size={15} />
                 Imprimir
               </button>
             </div>
 
-            <div className="terminal-ticket">{TICKET_PREVIEW}</div>
+            <div className="terminal-ticket">{ticketPreview}</div>
 
             <div className="terminal-summary-strip">
               <div>
                 <Wallet size={16} />
-                <span>Caja activa - Turno de ventas habilitado</span>
+                <span>
+                  Caja activa - {cartItems.length} item{cartItems.length === 1 ? '' : 's'} en carrito
+                </span>
               </div>
             </div>
           </aside>
