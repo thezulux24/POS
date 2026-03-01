@@ -4,6 +4,7 @@ import {
   CalendarDays,
   FileDown,
   LogOut,
+  Mail,
   Minus,
   Phone,
   Plus,
@@ -19,6 +20,7 @@ import {
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { authService } from '../services/authService';
+import { customerService } from '../services/customerService';
 import { productService } from '../services/productService';
 import { saleService } from '../services/saleService';
 import './terminal-templates.css';
@@ -43,6 +45,11 @@ const VendorTerminal = () => {
   const [cartItems, setCartItems] = useState([]);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('');
+  const [customerResults, setCustomerResults] = useState([]);
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [ticketPreview, setTicketPreview] = useState('Aun no hay ticket para mostrar.');
   const [lastSaleId, setLastSaleId] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -88,12 +95,19 @@ const VendorTerminal = () => {
       return 'No hay productos en el carrito para generar ticket.';
     }
 
+    const customerDisplayName = selectedCustomer 
+      ? selectedCustomer.nombre 
+      : customerName.trim();
+    const customerDisplayPhone = selectedCustomer 
+      ? selectedCustomer.telefono 
+      : customerPhone.trim();
+
     const header = [
       'POS - TIQUETE',
       `Venta #${saleIdLabel}`,
       `Fecha: ${new Date().toLocaleString('es-CO')}`,
-      customerName.trim() ? `Cliente: ${customerName.trim()}` : null,
-      customerPhone.trim() ? `Telefono: ${customerPhone.trim()}` : null,
+      customerDisplayName ? `Cliente: ${customerDisplayName}` : null,
+      customerDisplayPhone ? `Telefono: ${customerDisplayPhone}` : null,
       '-----------------------------',
     ].filter(Boolean);
 
@@ -110,6 +124,49 @@ const VendorTerminal = () => {
 
     return [...header, ...detail, ...footer].join('\n');
   };
+
+  const handleCustomerSearch = async (query) => {
+    setCustomerSearchQuery(query);
+    
+    if (!query.trim()) {
+      setCustomerResults([]);
+      setShowCustomerDropdown(false);
+      return;
+    }
+
+    try {
+      const data = await customerService.search(query);
+      console.log('🔍 Resultados de búsqueda:', data);
+      setCustomerResults(Array.isArray(data) ? data : []);
+      setShowCustomerDropdown(true);
+    } catch (err) {
+      console.error('❌ Error searching customers:', err);
+      setCustomerResults([]);
+    }
+  };
+
+  const handleSelectCustomer = (customer) => {
+    console.log('🔍 Cliente seleccionado:', customer);
+    setSelectedCustomer(customer);
+    setCustomerName(customer.nombre);
+    setCustomerPhone(customer.telefono || '');
+    setCustomerEmail(customer.email || '');
+    setCustomerSearchQuery(customer.nombre);
+    setShowCustomerDropdown(false);
+    setCustomerResults([]);
+    console.log('✅ Estados actualizados - Nombre:', customer.nombre, 'Teléfono:', customer.telefono, 'Email:', customer.email);
+  };
+
+  const handleClearCustomer = () => {
+    setSelectedCustomer(null);
+    setCustomerName('');
+    setCustomerPhone('');
+    setCustomerEmail('');
+    setCustomerSearchQuery('');
+    setCustomerResults([]);
+    setShowCustomerDropdown(false);
+  };
+
 
   const handleLogout = () => {
     authService.logout();
@@ -226,12 +283,34 @@ const VendorTerminal = () => {
       setSaleError('');
       setSaleSuccess('');
 
+      let customerId = selectedCustomer?.id || null;
+
+      // Si hay información de cliente pero no está seleccionado uno existente, crear nuevo
+      if (!selectedCustomer && customerName.trim()) {
+        try {
+          const newCustomer = await customerService.create({
+            nombre: customerName.trim(),
+            telefono: customerPhone.trim() || null,
+            email: customerEmail.trim() || null,
+            activo: true,
+          });
+          customerId = newCustomer.id;
+          setSelectedCustomer(newCustomer);
+        } catch (err) {
+          const message = err.response?.data?.message || 'Error al crear el cliente.';
+          setSaleError(Array.isArray(message) ? message.join(', ') : message);
+          setSaleLoading(false);
+          return;
+        }
+      }
+
       const payload = {
         items: cartItems.map((item) => ({
           productId: item.productId,
           cantidad: item.quantity,
         })),
         estado: 'COMPLETED',
+        clienteId: customerId,
       };
 
       const response = await saleService.create(payload);
@@ -385,6 +464,29 @@ const VendorTerminal = () => {
     void handleLoadReport();
   }, []);
 
+  React.useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showCustomerDropdown) {
+        const isClickInsideField = event.target.closest('.terminal-field');
+        const isClickInsideDropdown = event.target.closest('[data-customer-dropdown]');
+        
+        if (!isClickInsideField && !isClickInsideDropdown) {
+          setShowCustomerDropdown(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showCustomerDropdown]);
+
+  React.useEffect(() => {
+    if (selectedCustomer) {
+      console.log('📊 Estado después del render - selectedCustomer:', selectedCustomer);
+      console.log('📊 customerName:', customerName, 'customerPhone:', customerPhone, 'customerEmail:', customerEmail);
+    }
+  }, [selectedCustomer, customerName, customerPhone, customerEmail]);
+
   return (
     <div className="terminal-page">
       <div className="terminal-shell terminal-shell-animated">
@@ -477,31 +579,166 @@ const VendorTerminal = () => {
             </div>
 
             <div className="terminal-form-grid">
-              <div className="terminal-field-group">
-                <label className="terminal-mini-label">Cliente</label>
-                <label className="terminal-field">
-                  <UserRound size={15} />
-                  <input
-                    type="text"
-                    placeholder="Nombre del cliente"
-                    value={customerName}
-                    onChange={(event) => setCustomerName(event.target.value)}
-                  />
+              <div className="terminal-field-group" style={{ gridColumn: '1 / -1' }}>
+                <label className="terminal-mini-label">
+                  Cliente {selectedCustomer && <span style={{ color: '#10b981', fontSize: '11px' }}>(seleccionado)</span>}
                 </label>
+                <div style={{ position: 'relative' }}>
+                  <label className="terminal-field">
+                    <UserRound size={15} />
+                    <input
+                      type="text"
+                      placeholder="Buscar o crear cliente"
+                      value={selectedCustomer ? customerName : customerSearchQuery}
+                      onChange={(event) => {
+                        if (!selectedCustomer) {
+                          handleCustomerSearch(event.target.value);
+                        }
+                      }}
+                      onFocus={() => {
+                        if (!selectedCustomer && customerResults.length > 0) {
+                          setShowCustomerDropdown(true);
+                        }
+                      }}
+                      readOnly={!!selectedCustomer}
+                    />
+                    {selectedCustomer && (
+                      <button
+                        type="button"
+                        onClick={handleClearCustomer}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          padding: '4px',
+                          cursor: 'pointer',
+                          color: '#6b7280',
+                        }}
+                        aria-label="Limpiar cliente"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </label>
+                  {showCustomerDropdown && customerResults.length > 0 && (
+                    <div
+                      data-customer-dropdown
+                      style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                        background: 'white',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '6px',
+                        maxHeight: '200px',
+                        overflowY: 'auto',
+                        zIndex: 1000,
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                        marginTop: '4px',
+                      }}
+                    >
+                      {customerResults.map((customer) => (
+                        <div
+                          key={customer.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            console.log('🖱️ Click en cliente:', customer);
+                            handleSelectCustomer(customer);
+                          }}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                          }}
+                          style={{
+                            padding: '10px 12px',
+                            cursor: 'pointer',
+                            borderBottom: '1px solid #f3f4f6',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = '#f9fafb';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'white';
+                          }}
+                        >
+                          <div style={{ fontWeight: '500', fontSize: '13px' }}>{customer.nombre}</div>
+                          <div style={{ fontSize: '11px', color: '#6b7280' }}>
+                            {customer.telefono || 'Sin teléfono'} • {customer.email || 'Sin email'}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <div className="terminal-field-group">
-                <label className="terminal-mini-label">Telefono</label>
-                <label className="terminal-field">
-                  <Phone size={15} />
-                  <input
-                    type="text"
-                    placeholder="Telefono"
-                    value={customerPhone}
-                    onChange={(event) => setCustomerPhone(event.target.value)}
-                  />
-                </label>
-              </div>
+              {!selectedCustomer ? (
+                <>
+                  <div className="terminal-field-group">
+                    <label className="terminal-mini-label">Nombre completo (nuevo cliente)</label>
+                    <label className="terminal-field">
+                      <UserRound size={15} />
+                      <input
+                        type="text"
+                        placeholder="Nombre del cliente"
+                        value={customerName}
+                        onChange={(event) => setCustomerName(event.target.value)}
+                      />
+                    </label>
+                  </div>
+
+                  <div className="terminal-field-group">
+                    <label className="terminal-mini-label">Teléfono (opcional)</label>
+                    <label className="terminal-field">
+                      <Phone size={15} />
+                      <input
+                        type="text"
+                        placeholder="Teléfono"
+                        value={customerPhone}
+                        onChange={(event) => setCustomerPhone(event.target.value)}
+                      />
+                    </label>
+                  </div>
+
+                  <div className="terminal-field-group">
+                    <label className="terminal-mini-label">Email (opcional)</label>
+                    <label className="terminal-field">
+                      <Mail size={15} />
+                      <input
+                        type="email"
+                        placeholder="email@ejemplo.com"
+                        value={customerEmail}
+                        onChange={(event) => setCustomerEmail(event.target.value)}
+                      />
+                    </label>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="terminal-field-group">
+                    <label className="terminal-mini-label">Teléfono</label>
+                    <label className="terminal-field">
+                      <Phone size={15} />
+                      <input
+                        type="text"
+                        value={customerPhone || 'No registrado'}
+                        readOnly
+                      />
+                    </label>
+                  </div>
+
+                  <div className="terminal-field-group">
+                    <label className="terminal-mini-label">Email</label>
+                    <label className="terminal-field">
+                      <Mail size={15} />
+                      <input
+                        type="text"
+                        value={customerEmail || 'No registrado'}
+                        readOnly
+                      />
+                    </label>
+                  </div>
+                </>
+              )}
             </div>
           </section>
 

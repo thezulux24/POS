@@ -337,6 +337,19 @@
   color: #9ca3af;
 }
 
+.terminal-field input:read-only,
+.terminal-field input:disabled {
+  background-color: #f9fafb;
+  color: #6b7280;
+  cursor: not-allowed;
+}
+
+.terminal-field:has(input:read-only),
+.terminal-field:has(input:disabled) {
+  background-color: #f9fafb;
+  opacity: 0.7;
+}
+
 .terminal-field-group {
   display: flex;
   flex-direction: column;
