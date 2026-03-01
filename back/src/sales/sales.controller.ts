@@ -50,7 +50,7 @@ export class SalesController {
   }
 
   @Get('reports/daily')
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.VENDEDOR)
   @ApiOperation({ summary: 'Reporte simple de ventas del dia' })
   @ApiQuery({
     name: 'date',
@@ -62,9 +62,33 @@ export class SalesController {
   })
   @ApiOkResponse({ description: 'Reporte diario generado.' })
   @ApiBadRequestResponse({ description: 'Fecha invalida.' })
-  @ApiForbiddenResponse({ description: 'Solo ADMIN puede consultar reportes.' })
-  getDailyReport(@Query('date') date?: string) {
-    return this.salesService.getDailyReport(date);
+  @ApiQuery({
+    name: 'vendedorId',
+    required: false,
+    type: Number,
+    description:
+      'Filtro por vendedor (solo ADMIN). Si no se envia, incluye todos.',
+    example: 2,
+  })
+  @ApiForbiddenResponse({
+    description:
+      'Los vendedores solo pueden consultar sus propias ventas del dia.',
+  })
+  getDailyReport(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('date') date?: string,
+    @Query('vendedorId') vendedorId?: string,
+  ) {
+    return this.salesService.getDailyReport(user, date, vendedorId);
+  }
+
+  @Get('reports/vendors')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Listar vendedores activos para filtro de reportes' })
+  @ApiOkResponse({ description: 'Listado de vendedores.' })
+  @ApiForbiddenResponse({ description: 'Solo ADMIN puede listar vendedores.' })
+  getReportVendors() {
+    return this.salesService.getReportVendors();
   }
 
   @Get(':id/ticket')

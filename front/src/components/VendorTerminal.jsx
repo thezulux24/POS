@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+  CalendarDays,
+  FileDown,
   LogOut,
   Minus,
   Phone,
@@ -14,6 +16,8 @@ import {
   UserRound,
   Wallet,
 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { authService } from '../services/authService';
 import { productService } from '../services/productService';
 import { saleService } from '../services/saleService';
@@ -21,6 +25,7 @@ import './terminal-templates.css';
 
 const IVA_RATE = 0.19;
 const MAX_SEARCH_RESULTS = 20;
+const getTodayDate = () => new Date().toISOString().slice(0, 10);
 
 const escapeHtml = (value) =>
   value
@@ -45,9 +50,21 @@ const VendorTerminal = () => {
   const [saleError, setSaleError] = useState('');
   const [saleSuccess, setSaleSuccess] = useState('');
   const [saleLoading, setSaleLoading] = useState(false);
+  const [reportDate, setReportDate] = useState(getTodayDate);
+  const [reportData, setReportData] = useState(null);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState('');
 
   const priceFormatter = useMemo(
     () => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }),
+    [],
+  );
+  const dateTimeFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat('es-CO', {
+        dateStyle: 'short',
+        timeStyle: 'short',
+      }),
     [],
   );
 
@@ -302,12 +319,71 @@ const VendorTerminal = () => {
     printWindow.print();
   };
 
+  const handleLoadReport = async () => {
+    try {
+      setReportLoading(true);
+      setReportError('');
+      const data = await saleService.getDailyReport({ date: reportDate });
+      setReportData(data);
+    } catch (err) {
+      const message = err.response?.data?.message || 'Error al cargar reporte diario.';
+      setReportError(Array.isArray(message) ? message.join(', ') : message);
+      setReportData(null);
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
+  const handleDownloadReportPdf = () => {
+    if (!reportData) {
+      setReportError('Genera el reporte antes de descargar el PDF.');
+      return;
+    }
+
+    const printableDate = reportData.date || reportDate;
+    const doc = new jsPDF();
+    doc.setFontSize(14);
+    doc.text('Reporte Diario de Ventas', 14, 16);
+    doc.setFontSize(10);
+    doc.text(`Fecha: ${printableDate}`, 14, 24);
+    doc.text(`Vendedor: ${user?.nombre ?? 'Vendedor'}`, 14, 30);
+    doc.text(`Total ventas (conteo): ${Number(reportData.totalSales ?? 0)}`, 14, 36);
+    doc.text(`Suma total del dia: ${priceFormatter.format(Number(reportData.totalAmount ?? 0))}`, 14, 42);
+
+    const rows = Array.isArray(reportData.sales)
+      ? reportData.sales.map((sale) => [
+          dateTimeFormatter.format(new Date(sale.fecha)),
+          String(sale.id),
+          sale.vendedor?.nombre || user?.nombre || 'N/A',
+          priceFormatter.format(Number(sale.total ?? 0)),
+        ])
+      : [];
+
+    autoTable(doc, {
+      startY: 48,
+      head: [['Hora y fecha', 'ID venta', 'Vendedor', 'Total']],
+      body: rows,
+      styles: {
+        fontSize: 9,
+      },
+      headStyles: {
+        fillColor: [31, 41, 55],
+      },
+    });
+
+    doc.save(`reporte-ventas-${printableDate}.pdf`);
+  };
+
   const handleKeyDown = (event) => {
     if (event.key === 'Enter') {
       event.preventDefault();
       handleSearch();
     }
   };
+
+  React.useEffect(() => {
+    void handleLoadReport();
+  }, []);
 
   return (
     <div className="terminal-page">
@@ -528,6 +604,70 @@ const VendorTerminal = () => {
             </div>
 
             <div className="terminal-ticket">{ticketPreview}</div>
+
+            <section className="terminal-panel" style={{ marginTop: '16px' }}>
+              <div className="terminal-panel-header">
+                <div>
+                  <h2 className="terminal-panel-title">Reporte Diario</h2>
+                  <p className="terminal-panel-sub">Consulta tus ventas del dia y descarga PDF.</p>
+                </div>
+              </div>
+
+              <div className="terminal-toolbar terminal-toolbar-vendor">
+                <label className="terminal-field">
+                  <CalendarDays size={15} />
+                  <input type="date" value={reportDate} onChange={(event) => setReportDate(event.target.value)} />
+                </label>
+                <button
+                  type="button"
+                  className="terminal-primary-btn terminal-primary-btn-sm"
+                  onClick={handleLoadReport}
+                  disabled={reportLoading}
+                >
+                  {reportLoading ? 'Consultando...' : 'Consultar'}
+                </button>
+              </div>
+
+              {reportError && <p className="terminal-panel-sub terminal-feedback-error">{reportError}</p>}
+
+              <div className="terminal-actions-bar" style={{ marginTop: '12px' }}>
+                <button type="button" className="terminal-ghost-btn" onClick={handleDownloadReportPdf}>
+                  <FileDown size={15} />
+                  Descargar PDF
+                </button>
+              </div>
+
+              <div className="terminal-summary-strip" style={{ marginTop: '12px' }}>
+                <div>
+                  <span>
+                    Ventas: {Number(reportData?.totalSales ?? 0)}
+                  </span>
+                </div>
+                <div>
+                  <span>
+                    Total dia: {priceFormatter.format(Number(reportData?.totalAmount ?? 0))}
+                  </span>
+                </div>
+              </div>
+
+              <div className="terminal-table terminal-table-scroll" style={{ marginTop: '12px' }}>
+                <div className="terminal-head" style={{ '--columns': '1.3fr 0.6fr 1.1fr 0.8fr' }}>
+                  <span>Hora y fecha</span>
+                  <span>ID</span>
+                  <span>Vendedor</span>
+                  <span>Total</span>
+                </div>
+
+                {(reportData?.sales ?? []).map((sale) => (
+                  <div key={sale.id} className="terminal-row" style={{ '--columns': '1.3fr 0.6fr 1.1fr 0.8fr' }}>
+                    <span>{dateTimeFormatter.format(new Date(sale.fecha))}</span>
+                    <span>{sale.id}</span>
+                    <span>{sale.vendedor?.nombre ?? user?.nombre ?? 'N/A'}</span>
+                    <span>{priceFormatter.format(Number(sale.total))}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
 
             <div className="terminal-summary-strip">
               <div>

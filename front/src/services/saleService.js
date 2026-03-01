@@ -11,4 +11,22 @@ export const saleService = {
     const response = await axios.get(`${API_URL}/${saleId}/ticket`);
     return response.data;
   },
+  getDailyReport: async ({ date, vendedorId } = {}) => {
+    const params = {};
+
+    if (date) {
+      params.date = date;
+    }
+
+    if (vendedorId) {
+      params.vendedorId = vendedorId;
+    }
+
+    const response = await axios.get(`${API_URL}/reports/daily`, { params });
+    return response.data;
+  },
+  getReportVendors: async () => {
+    const response = await axios.get(`${API_URL}/reports/vendors`);
+    return response.data;
+  },
 };

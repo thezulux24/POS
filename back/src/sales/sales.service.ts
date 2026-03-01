@@ -1,11 +1,13 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import type { AuthenticatedUser } from '../auth/auth.types';
 import { CreateSaleDto } from './dto/create-sale.dto';
 import { CreateSaleItemDto } from './dto/create-sale-item.dto';
 
@@ -203,8 +205,30 @@ export class SalesService {
     };
   }
 
-  async getDailyReport(date?: string) {
+  async getDailyReport(
+    user: AuthenticatedUser,
+    date?: string,
+    vendedorIdParam?: string,
+  ) {
     const { start, end, label } = this.getDateRange(date);
+    const requestedVendedorId = this.parseOptionalPositiveInt(
+      vendedorIdParam,
+      'vendedorId',
+    );
+
+    let vendedorIdFilter: number | undefined;
+
+    if (user.rol === Role.ADMIN) {
+      vendedorIdFilter = requestedVendedorId;
+    } else {
+      if (requestedVendedorId && requestedVendedorId !== user.id) {
+        throw new ForbiddenException(
+          'Solo puedes consultar reportes de tus propias ventas',
+        );
+      }
+
+      vendedorIdFilter = user.id;
+    }
 
     const sales = await this.prisma.sale.findMany({
       where: {
@@ -212,6 +236,7 @@ export class SalesService {
           gte: start,
           lt: end,
         },
+        ...(vendedorIdFilter ? { vendedorId: vendedorIdFilter } : {}),
       },
       include: {
         vendedor: {
@@ -241,6 +266,7 @@ export class SalesService {
 
     return {
       date: label,
+      vendedorId: vendedorIdFilter ?? null,
       totalSales: sales.length,
       totalAmount: total,
       sales: sales.map((sale) => ({
@@ -252,6 +278,25 @@ export class SalesService {
         cliente: sale.cliente,
       })),
     };
+  }
+
+  async getReportVendors() {
+    const vendors = await this.prisma.user.findMany({
+      where: {
+        activo: true,
+        rol: Role.VENDEDOR,
+      },
+      select: {
+        id: true,
+        nombre: true,
+        email: true,
+      },
+      orderBy: {
+        nombre: 'asc',
+      },
+    });
+
+    return vendors;
   }
 
   private normalizeItems(items: CreateSaleItemDto[]): NormalizedSaleItem[] {
@@ -391,6 +436,30 @@ export class SalesService {
       dateStyle: 'medium',
       timeStyle: 'short',
     }).format(value);
+  }
+
+  private parseOptionalPositiveInt(
+    value: string | undefined,
+    field: string,
+  ): number | undefined {
+    if (value === undefined) {
+      return undefined;
+    }
+
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return undefined;
+    }
+
+    const parsed = Number(trimmed);
+
+    if (!Number.isInteger(parsed) || parsed < 1) {
+      throw new BadRequestException(
+        `El campo ${field} debe ser un entero positivo`,
+      );
+    }
+
+    return parsed;
   }
 
   private getDateRange(date?: string): {
