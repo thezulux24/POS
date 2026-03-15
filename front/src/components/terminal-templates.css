@@ -482,6 +482,16 @@
   background: #fff;
 }
 
+.terminal-list-item-button {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+.terminal-list-item-button:hover {
+  background: var(--bg-soft);
+}
+
 .terminal-list-item strong {
   display: block;
   font-size: 13px;
@@ -696,6 +706,249 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* ── Carrito: badge de cantidad ── */
+.terminal-cart-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: #111827;
+  color: #f9fafb;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 0 5px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+/* ── Carrito: botón vaciar (peligro) ── */
+.terminal-ghost-btn-sm {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.terminal-ghost-btn-danger {
+  border-color: rgba(185, 28, 28, 0.3);
+  color: var(--warning);
+}
+
+.terminal-ghost-btn-danger:hover {
+  background: var(--warning-soft);
+}
+
+/* ── Buscador de clientes ── */
+.terminal-customer-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.terminal-customer-history-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border-soft);
+  background: #fff;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.terminal-customer-history-btn:hover {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+
+.terminal-customer-search-wrap {
+  position: relative;
+}
+
+.terminal-customer-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(17, 24, 39, 0.12);
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  z-index: 10;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.terminal-customer-option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 9px 10px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.terminal-customer-option:hover {
+  background: var(--bg-soft);
+}
+
+.terminal-customer-option strong {
+  font-size: 13px;
+  color: var(--text-main);
+}
+
+.terminal-customer-option span {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── Chip cliente seleccionado ── */
+.terminal-customer-chip {
+  border: 1px solid var(--ok);
+  background: var(--ok-soft);
+  border-radius: 11px;
+  padding: 10px 11px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ok);
+}
+
+.terminal-customer-chip-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.terminal-customer-chip-info strong {
+  display: block;
+  font-size: 13px;
+  color: var(--text-main);
+}
+
+.terminal-customer-chip-info span {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+/* ── Spin animation (icono cargando) ── */
+.terminal-spin {
+  animation: terminal-spin 0.8s linear infinite;
+}
+
+@keyframes terminal-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ── Modal amplio para historial ── */
+.terminal-modal-wide {
+  width: min(820px, 100%);
+}
+
+/* ── Lista historial dentro del modal ── */
+.terminal-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.terminal-history-item {
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.terminal-history-summary {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 13px;
+  user-select: none;
+}
+
+.terminal-history-summary::-webkit-details-marker {
+  display: none;
+}
+
+.terminal-history-summary:hover {
+  background: var(--bg-soft);
+}
+
+.terminal-history-id {
+  font-weight: 700;
+  color: var(--text-muted);
+  font-size: 12px;
+  min-width: 40px;
+}
+
+.terminal-history-date {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.terminal-history-total {
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.terminal-history-chevron {
+  color: var(--text-muted);
+  transition: transform 0.2s;
+}
+
+details[open] .terminal-history-chevron {
+  transform: rotate(180deg);
+}
+
+.terminal-history-items {
+  list-style: none;
+  margin: 0;
+  padding: 0 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-top: 1px solid var(--border-soft);
+  padding-top: 8px;
+}
+
+.terminal-history-items li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-main);
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.terminal-history-items li:last-child {
+  border-bottom: none;
 }
 
 @media (max-width: 1120px) {

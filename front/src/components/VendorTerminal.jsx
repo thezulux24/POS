@@ -1,9 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+  ChevronDown,
+  History,
   LogOut,
   Minus,
-  Phone,
   Plus,
   Printer,
   ReceiptText,
@@ -13,8 +14,10 @@ import {
   Trash2,
   UserRound,
   Wallet,
+  X,
 } from 'lucide-react';
 import { authService } from '../services/authService';
+import { customerService } from '../services/customerService';
 import { productService } from '../services/productService';
 import { saleService } from '../services/saleService';
 import './terminal-templates.css';
@@ -36,8 +39,22 @@ const VendorTerminal = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [results, setResults] = useState([]);
   const [cartItems, setCartItems] = useState([]);
-  const [customerName, setCustomerName] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
+
+  // --- cliente ---
+  const [customerQuery, setCustomerQuery] = useState('');
+  const [customerSuggestions, setCustomerSuggestions] = useState([]);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [customerSearching, setCustomerSearching] = useState(false);
+  const [customerSearchError, setCustomerSearchError] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const customerDebounceRef = useRef(null);
+
+  // --- historial ---
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyData, setHistoryData] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState('');
+
   const [ticketPreview, setTicketPreview] = useState('Aun no hay ticket para mostrar.');
   const [lastSaleId, setLastSaleId] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -75,8 +92,8 @@ const VendorTerminal = () => {
       'POS - TIQUETE',
       `Venta #${saleIdLabel}`,
       `Fecha: ${new Date().toLocaleString('es-CO')}`,
-      customerName.trim() ? `Cliente: ${customerName.trim()}` : null,
-      customerPhone.trim() ? `Telefono: ${customerPhone.trim()}` : null,
+      selectedCustomer ? `Cliente: ${selectedCustomer.nombre}` : null,
+      selectedCustomer?.telefono ? `Telefono: ${selectedCustomer.telefono}` : null,
       '-----------------------------',
     ].filter(Boolean);
 
@@ -92,6 +109,72 @@ const VendorTerminal = () => {
     ];
 
     return [...header, ...detail, ...footer].join('\n');
+  };
+
+  // --- handlers cliente ---
+  const handleCustomerSearch = useCallback((value) => {
+    setCustomerQuery(value);
+    setCustomerSearchError('');
+    if (customerDebounceRef.current) clearTimeout(customerDebounceRef.current);
+
+    if (!value.trim()) {
+      setCustomerSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    customerDebounceRef.current = setTimeout(async () => {
+      try {
+        setCustomerSearching(true);
+        const data = await customerService.search(value.trim());
+        setCustomerSuggestions(Array.isArray(data) ? data.slice(0, 8) : []);
+        setShowSuggestions(true);
+      } catch {
+        setCustomerSearchError('Error al buscar clientes.');
+        setCustomerSuggestions([]);
+      } finally {
+        setCustomerSearching(false);
+      }
+    }, 320);
+  }, []);
+
+  const selectCustomer = (customer) => {
+    setSelectedCustomer(customer);
+    setCustomerQuery('');
+    setCustomerSuggestions([]);
+    setShowSuggestions(false);
+  };
+
+  const clearCustomer = () => {
+    setSelectedCustomer(null);
+    setCustomerQuery('');
+    setCustomerSuggestions([]);
+    setShowSuggestions(false);
+    setCustomerSearchError('');
+  };
+
+  // --- handlers historial ---
+  const handleViewHistory = async () => {
+    if (!selectedCustomer) return;
+    setHistoryOpen(true);
+    setHistoryError('');
+    setHistoryData([]);
+    try {
+      setHistoryLoading(true);
+      const data = await saleService.getByCustomer(selectedCustomer.id);
+      setHistoryData(Array.isArray(data) ? data : []);
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Error al cargar historial.';
+      setHistoryError(Array.isArray(msg) ? msg.join(', ') : msg);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const closeHistory = () => {
+    setHistoryOpen(false);
+    setHistoryData([]);
+    setHistoryError('');
   };
 
   const handleLogout = () => {
@@ -215,6 +298,7 @@ const VendorTerminal = () => {
           cantidad: item.quantity,
         })),
         estado: 'COMPLETED',
+        ...(selectedCustomer ? { clienteId: selectedCustomer.id } : {}),
       };
 
       const response = await saleService.create(payload);
@@ -224,6 +308,7 @@ const VendorTerminal = () => {
       setTicketPreview(preview);
       setLastSaleId(saleId ?? null);
       setCartItems([]);
+      clearCustomer();
       setSaleSuccess(`Venta registrada correctamente${saleId ? ` (#${saleId})` : ''}.`);
     } catch (err) {
       const message = err.response?.data?.message || 'Error al registrar la venta.';
@@ -400,41 +485,105 @@ const VendorTerminal = () => {
               ))}
             </div>
 
-            <div className="terminal-form-grid">
-              <div className="terminal-field-group">
-                <label className="terminal-mini-label">Cliente</label>
-                <label className="terminal-field">
-                  <UserRound size={15} />
-                  <input
-                    type="text"
-                    placeholder="Nombre del cliente"
-                    value={customerName}
-                    onChange={(event) => setCustomerName(event.target.value)}
-                  />
-                </label>
+            {/* ── Sección cliente (US006b) ── */}
+            <div className="terminal-field-group">
+              <div className="terminal-customer-label-row">
+                <label className="terminal-mini-label">Cliente (opcional)</label>
+                {selectedCustomer && (
+                  <button
+                    type="button"
+                    className="terminal-customer-history-btn"
+                    onClick={handleViewHistory}
+                    title="Ver historial de compras"
+                  >
+                    <History size={13} />
+                    Historial
+                  </button>
+                )}
               </div>
 
-              <div className="terminal-field-group">
-                <label className="terminal-mini-label">Telefono</label>
-                <label className="terminal-field">
-                  <Phone size={15} />
-                  <input
-                    type="text"
-                    placeholder="Telefono"
-                    value={customerPhone}
-                    onChange={(event) => setCustomerPhone(event.target.value)}
-                  />
-                </label>
-              </div>
+              {selectedCustomer ? (
+                <div className="terminal-customer-chip">
+                  <UserRound size={15} />
+                  <div className="terminal-customer-chip-info">
+                    <strong>{selectedCustomer.nombre}</strong>
+                    {selectedCustomer.telefono && <span>{selectedCustomer.telefono}</span>}
+                  </div>
+                  <button
+                    type="button"
+                    className="terminal-icon-btn"
+                    aria-label="Quitar cliente"
+                    onClick={clearCustomer}
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+              ) : (
+                <div className="terminal-customer-search-wrap">
+                  <label className="terminal-field">
+                    {customerSearching ? <ChevronDown size={15} className="terminal-spin" /> : <UserRound size={15} />}
+                    <input
+                      type="text"
+                      placeholder="Buscar cliente por nombre o telefono"
+                      value={customerQuery}
+                      onChange={(e) => handleCustomerSearch(e.target.value)}
+                      onBlur={() => setTimeout(() => setShowSuggestions(false), 180)}
+                      onFocus={() => customerSuggestions.length > 0 && setShowSuggestions(true)}
+                      autoComplete="off"
+                    />
+                  </label>
+
+                  {showSuggestions && customerSuggestions.length > 0 && (
+                    <ul className="terminal-customer-dropdown">
+                      {customerSuggestions.map((c) => (
+                        <li key={c.id}>
+                          <button
+                            type="button"
+                            className="terminal-customer-option"
+                            onMouseDown={() => selectCustomer(c)}
+                          >
+                            <strong>{c.nombre}</strong>
+                            {c.telefono && <span>{c.telefono}</span>}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {customerSearchError && (
+                    <p className="terminal-panel-sub terminal-feedback-error">{customerSearchError}</p>
+                  )}
+                </div>
+              )}
             </div>
           </section>
 
           <aside className="terminal-panel">
             <div className="terminal-panel-header">
               <div>
-                <h2 className="terminal-panel-title">Carrito</h2>
-                <p className="terminal-panel-sub">Detalle de productos y total de la venta.</p>
+                <h2 className="terminal-panel-title">
+                  Carrito
+                  {cartItems.length > 0 && (
+                    <span className="terminal-cart-badge">{cartItems.length}</span>
+                  )}
+                </h2>
+                <p className="terminal-panel-sub">
+                  {cartItems.length === 0
+                    ? 'Agrega productos desde la busqueda.'
+                    : `${cartItems.reduce((a, i) => a + i.quantity, 0)} unidades · ${cartItems.length} ${cartItems.length === 1 ? 'producto' : 'productos'}`}
+                </p>
               </div>
+              {cartItems.length > 0 && (
+                <button
+                  type="button"
+                  className="terminal-ghost-btn terminal-ghost-btn-sm terminal-ghost-btn-danger"
+                  onClick={() => { setCartItems([]); setSaleError(''); setSaleSuccess(''); }}
+                  title="Vaciar carrito"
+                >
+                  <Trash2 size={13} />
+                  Vaciar
+                </button>
+              )}
             </div>
 
             <div className="terminal-cart-list">
@@ -533,13 +682,89 @@ const VendorTerminal = () => {
               <div>
                 <Wallet size={16} />
                 <span>
-                  Caja activa - {cartItems.length} item{cartItems.length === 1 ? '' : 's'} en carrito
+                  Caja activa
+                  {selectedCustomer && (
+                    <> &mdash; <strong>{selectedCustomer.nombre}</strong></>
+                  )}
+                  {cartItems.length > 0 && (
+                    <> &mdash; {cartItems.reduce((a, i) => a + i.quantity, 0)} unid.
+                      ({priceFormatter.format(totals.total)})</>
+                  )}
                 </span>
               </div>
             </div>
           </aside>
         </div>
       </div>
+
+      {/* ── Modal historial de compras (US014) ── */}
+      {historyOpen && (
+        <div className="terminal-modal-backdrop" role="dialog" aria-modal="true" aria-label="Historial de compras">
+          <div className="terminal-modal terminal-modal-wide">
+            <div className="terminal-modal-header">
+              <div>
+                <h3>Historial de compras</h3>
+                {selectedCustomer && (
+                  <p>{selectedCustomer.nombre}{selectedCustomer.telefono ? ` · ${selectedCustomer.telefono}` : ''}</p>
+                )}
+              </div>
+              <button type="button" className="terminal-modal-close" onClick={closeHistory} aria-label="Cerrar">
+                &times;
+              </button>
+            </div>
+
+            <div className="terminal-modal-body">
+              {historyLoading && <p className="terminal-panel-sub">Cargando historial...</p>}
+              {historyError && <p className="terminal-modal-error">{historyError}</p>}
+              {!historyLoading && !historyError && historyData.length === 0 && (
+                <p className="terminal-panel-sub">Este cliente no tiene ventas registradas.</p>
+              )}
+
+              {historyData.length > 0 && (
+                <div className="terminal-history-list">
+                  {historyData.map((sale) => (
+                    <details key={sale.id} className="terminal-history-item">
+                      <summary className="terminal-history-summary">
+                        <span className="terminal-history-id">#{sale.id}</span>
+                        <span className="terminal-history-date">
+                          {new Date(sale.fecha).toLocaleString('es-CO', {
+                            dateStyle: 'medium',
+                            timeStyle: 'short',
+                          })}
+                        </span>
+                        <span className="terminal-history-total">
+                          {priceFormatter.format(Number(sale.total))}
+                        </span>
+                        <span className={`terminal-pill ${
+                          sale.estado === 'COMPLETED' ? 'terminal-pill-ok' :
+                          sale.estado === 'CANCELLED' ? 'terminal-pill-alert' :
+                          'terminal-pill-muted'
+                        }`}>{sale.estado}</span>
+                        <ChevronDown size={14} className="terminal-history-chevron" />
+                      </summary>
+                      <ul className="terminal-history-items">
+                        {sale.items.map((item) => (
+                          <li key={item.id}>
+                            <span>{item.nombre}</span>
+                            <span>{item.cantidad} x {priceFormatter.format(Number(item.precio_unitario))}</span>
+                            <span>{priceFormatter.format(Number(item.subtotal))}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="terminal-modal-actions">
+              <button type="button" className="terminal-ghost-btn" onClick={closeHistory}>
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

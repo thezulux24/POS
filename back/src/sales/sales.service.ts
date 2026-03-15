@@ -185,6 +185,18 @@ export class SalesService {
     return this.serializeSale(sale);
   }
 
+  async findByCustomer(customerId: number) {
+    await this.ensureCustomerExists(customerId);
+
+    const sales = await this.prisma.sale.findMany({
+      where: { clienteId: customerId },
+      include: saleInclude,
+      orderBy: { fecha: 'desc' },
+    });
+
+    return sales.map((sale) => this.serializeSale(sale));
+  }
+
   async getTicket(id: number) {
     const sale = await this.prisma.sale.findUnique({
       where: { id },

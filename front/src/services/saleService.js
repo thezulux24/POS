@@ -11,4 +11,8 @@ export const saleService = {
     const response = await axios.get(`${API_URL}/${saleId}/ticket`);
     return response.data;
   },
+  getByCustomer: async (customerId) => {
+    const response = await axios.get(`${API_URL}/by-customer/${customerId}`);
+    return response.data;
+  },
 };

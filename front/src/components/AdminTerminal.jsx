@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Crown,
   Filter,
+  History,
   LogOut,
   Pencil,
   Plus,
@@ -10,12 +11,16 @@ import {
   ShieldCheck,
   Tags,
   Trash2,
+  UserRound,
   Warehouse,
+  X,
 } from 'lucide-react';
 import { authService } from '../services/authService';
 import { categoryService } from '../services/categoryService';
+import { customerService } from '../services/customerService';
 import { productService } from '../services/productService';
 import { providerService } from '../services/providerService';
+import { saleService } from '../services/saleService';
 import './terminal-templates.css';
 
 const DASHBOARD_STATS = [
@@ -76,6 +81,15 @@ const AdminTerminal = () => {
   const [categoryDeleteLoading, setCategoryDeleteLoading] = useState(false);
   const [categoryDeleteError, setCategoryDeleteError] = useState('');
   const [categoryToDelete, setCategoryToDelete] = useState(null);
+  const [customerQuery, setCustomerQuery] = useState('');
+  const [customerResults, setCustomerResults] = useState([]);
+  const [customerLoading, setCustomerLoading] = useState(false);
+  const [customerError, setCustomerError] = useState('');
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [customerHistoryOpen, setCustomerHistoryOpen] = useState(false);
+  const [customerHistoryData, setCustomerHistoryData] = useState([]);
+  const [customerHistoryLoading, setCustomerHistoryLoading] = useState(false);
+  const [customerHistoryError, setCustomerHistoryError] = useState('');
   const [editForm, setEditForm] = useState({
     id: null,
     codigo: '',
@@ -590,6 +604,82 @@ const AdminTerminal = () => {
     }
   };
 
+  const handleCustomerSearch = async () => {
+    const trimmedQuery = customerQuery.trim();
+
+    if (!trimmedQuery) {
+      setCustomerResults([]);
+      setCustomerError('Ingresa un nombre, telefono o correo para buscar.');
+      return;
+    }
+
+    try {
+      setCustomerLoading(true);
+      setCustomerError('');
+      const data = await customerService.search(trimmedQuery);
+      setCustomerResults(Array.isArray(data) ? data : []);
+
+      if (!data || data.length === 0) {
+        setCustomerError('No se encontraron clientes.');
+      }
+    } catch (err) {
+      const message = err.response?.data?.message || 'Error al buscar clientes.';
+      setCustomerError(Array.isArray(message) ? message.join(', ') : message);
+      setCustomerResults([]);
+    } finally {
+      setCustomerLoading(false);
+    }
+  };
+
+  const handleCustomerKeyDown = (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      void handleCustomerSearch();
+    }
+  };
+
+  const handleSelectCustomer = (customer) => {
+    setSelectedCustomer(customer);
+    setCustomerError('');
+  };
+
+  const handleClearCustomer = () => {
+    setSelectedCustomer(null);
+    setCustomerHistoryData([]);
+    setCustomerHistoryError('');
+    setCustomerHistoryOpen(false);
+  };
+
+  const handleOpenCustomerHistory = async () => {
+    if (!selectedCustomer) {
+      return;
+    }
+
+    try {
+      setCustomerHistoryLoading(true);
+      setCustomerHistoryError('');
+      setCustomerHistoryOpen(true);
+      const data = await saleService.getByCustomer(selectedCustomer.id);
+      setCustomerHistoryData(Array.isArray(data) ? data : []);
+    } catch (err) {
+      const message = err.response?.data?.message || 'Error al cargar el historial del cliente.';
+      setCustomerHistoryError(Array.isArray(message) ? message.join(', ') : message);
+      setCustomerHistoryData([]);
+    } finally {
+      setCustomerHistoryLoading(false);
+    }
+  };
+
+  const handleCloseCustomerHistory = () => {
+    if (customerHistoryLoading) {
+      return;
+    }
+
+    setCustomerHistoryOpen(false);
+    setCustomerHistoryError('');
+    setCustomerHistoryData([]);
+  };
+
   return (
     <div className="terminal-page">
       <div className="terminal-shell terminal-shell-animated">
@@ -725,6 +815,100 @@ const AdminTerminal = () => {
             <section className="terminal-panel">
               <div className="terminal-panel-header">
                 <div>
+                  <h2 className="terminal-panel-title">Clientes</h2>
+                  <p className="terminal-panel-sub">Consulta clientes y revisa su historial de compras.</p>
+                </div>
+                {selectedCustomer && (
+                  <button
+                    type="button"
+                    className="terminal-primary-btn terminal-primary-btn-sm"
+                    onClick={handleOpenCustomerHistory}
+                  >
+                    <History size={14} />
+                    Historial
+                  </button>
+                )}
+              </div>
+
+              <div className="terminal-toolbar terminal-toolbar-vendor">
+                <label className="terminal-field">
+                  <button
+                    type="button"
+                    className="terminal-input-action"
+                    onClick={handleCustomerSearch}
+                    aria-label="Buscar cliente"
+                  >
+                    <Search size={15} />
+                  </button>
+                  <input
+                    type="text"
+                    placeholder="Buscar cliente por nombre, telefono o correo"
+                    value={customerQuery}
+                    onChange={(event) => setCustomerQuery(event.target.value)}
+                    onKeyDown={handleCustomerKeyDown}
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="terminal-primary-btn terminal-primary-btn-sm"
+                  onClick={handleCustomerSearch}
+                  disabled={customerLoading}
+                >
+                  {customerLoading ? 'Buscando...' : 'Buscar'}
+                </button>
+              </div>
+
+              {customerError && <p className="terminal-panel-sub terminal-feedback-error">{customerError}</p>}
+
+              {selectedCustomer && (
+                <div className="terminal-customer-chip">
+                  <UserRound size={15} />
+                  <div className="terminal-customer-chip-info">
+                    <strong>{selectedCustomer.nombre}</strong>
+                    <span>{selectedCustomer.telefono || selectedCustomer.email || 'Sin datos adicionales'}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="terminal-icon-btn"
+                    aria-label="Quitar cliente"
+                    onClick={handleClearCustomer}
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+              )}
+
+              <div className="terminal-list">
+                {customerResults.slice(0, 6).map((customer) => (
+                  <button
+                    key={customer.id}
+                    type="button"
+                    className="terminal-list-item terminal-list-item-button"
+                    onClick={() => handleSelectCustomer(customer)}
+                  >
+                    <div>
+                      <strong>{customer.nombre}</strong>
+                      <span>{customer.telefono || 'Sin telefono'}</span>
+                      <span>{customer.email || 'Sin correo'}</span>
+                    </div>
+                    <span className="terminal-status-tag">#{customer.id}</span>
+                  </button>
+                ))}
+
+                {!customerLoading && customerResults.length === 0 && (
+                  <article className="terminal-list-item">
+                    <div>
+                      <strong>Consulta de clientes</strong>
+                      <span>Busca un cliente y selecciona el resultado para revisar su historial.</span>
+                    </div>
+                  </article>
+                )}
+              </div>
+            </section>
+
+            <section className="terminal-panel">
+              <div className="terminal-panel-header">
+                <div>
                   <h2 className="terminal-panel-title">Categorias</h2>
                   <p className="terminal-panel-sub">Control de categorias del catalogo.</p>
                 </div>
@@ -812,6 +996,78 @@ const AdminTerminal = () => {
           </div>
         </div>
       </div>
+
+      {customerHistoryOpen && (
+        <div className="terminal-modal-backdrop" role="presentation" onClick={handleCloseCustomerHistory}>
+          <div className="terminal-modal terminal-modal-wide" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+            <header className="terminal-modal-header">
+              <div>
+                <h3>Historial de compras</h3>
+                <p>{selectedCustomer?.nombre ?? 'Cliente'}{selectedCustomer?.telefono ? ` · ${selectedCustomer.telefono}` : ''}</p>
+              </div>
+              <button type="button" className="terminal-modal-close" onClick={handleCloseCustomerHistory} aria-label="Cerrar">
+                ×
+              </button>
+            </header>
+
+            <div className="terminal-modal-body">
+              {customerHistoryLoading && <p className="terminal-panel-sub">Cargando historial...</p>}
+              {customerHistoryError && <p className="terminal-modal-error">{customerHistoryError}</p>}
+              {!customerHistoryLoading && !customerHistoryError && customerHistoryData.length === 0 && (
+                <p className="terminal-panel-sub">Este cliente no tiene compras registradas.</p>
+              )}
+
+              {customerHistoryData.length > 0 && (
+                <div className="terminal-history-list">
+                  {customerHistoryData.map((sale) => (
+                    <details key={sale.id} className="terminal-history-item">
+                      <summary className="terminal-history-summary">
+                        <span className="terminal-history-id">#{sale.id}</span>
+                        <span className="terminal-history-date">
+                          {new Date(sale.fecha).toLocaleString('es-CO', {
+                            dateStyle: 'medium',
+                            timeStyle: 'short',
+                          })}
+                        </span>
+                        <span className="terminal-history-total">
+                          {priceFormatter.format(Number(sale.total))}
+                        </span>
+                        <span
+                          className={`terminal-pill ${
+                            sale.estado === 'COMPLETED'
+                              ? 'terminal-pill-ok'
+                              : sale.estado === 'CANCELLED'
+                                ? 'terminal-pill-alert'
+                                : 'terminal-pill-muted'
+                          }`}
+                        >
+                          {sale.estado}
+                        </span>
+                        <History size={14} className="terminal-history-chevron" />
+                      </summary>
+                      <ul className="terminal-history-items">
+                        {sale.items.map((item) => (
+                          <li key={item.id}>
+                            <span>{item.nombre}</span>
+                            <span>{item.cantidad} x {priceFormatter.format(Number(item.precio_unitario))}</span>
+                            <span>{priceFormatter.format(Number(item.subtotal))}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  ))}
+                </div>
+              )}
+
+              <div className="terminal-modal-actions">
+                <button type="button" className="terminal-ghost-btn" onClick={handleCloseCustomerHistory}>
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isCreateOpen && (
         <div className="terminal-modal-backdrop" role="presentation" onClick={handleCloseCreate}>

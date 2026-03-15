@@ -77,6 +77,16 @@ export class SalesController {
     return this.salesService.getTicket(id);
   }
 
+  @Get('by-customer/:customerId')
+  @Roles(Role.ADMIN, Role.VENDEDOR)
+  @ApiOperation({ summary: 'Historial de ventas de un cliente' })
+  @ApiParam({ name: 'customerId', type: Number, description: 'ID del cliente' })
+  @ApiOkResponse({ description: 'Ventas del cliente.' })
+  @ApiBadRequestResponse({ description: 'ID invalido.' })
+  findByCustomer(@Param('customerId', ParseIntPipe) customerId: number) {
+    return this.salesService.findByCustomer(customerId);
+  }
+
   @Get(':id')
   @Roles(Role.ADMIN, Role.VENDEDOR)
   @ApiOperation({ summary: 'Obtener venta por ID' })
