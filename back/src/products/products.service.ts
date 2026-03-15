@@ -16,7 +16,7 @@ export interface ProductFilters {
   onlyWithStock?: boolean;
 }
 
-export interface ProviderFilters {
+export interface SupplierFilters {
   search?: string;
   includeInactive?: boolean;
 }
@@ -34,9 +34,9 @@ export class ProductsService {
       createProductDto.categoryId,
       'categoryId',
     );
-    const providerId = this.parseNullablePositiveInt(
-      createProductDto.providerId,
-      'providerId',
+    const supplierId = this.parseNullablePositiveInt(
+      createProductDto.supplierId,
+      'supplierId',
     );
 
     if (
@@ -47,8 +47,8 @@ export class ProductsService {
     }
 
     await this.ensureCategoryExists(categoryId);
-    if (providerId !== null) {
-      await this.ensureProviderExists(providerId);
+    if (supplierId !== null) {
+      await this.ensureSupplierExists(supplierId);
     }
 
     try {
@@ -59,12 +59,12 @@ export class ProductsService {
           precio,
           stock,
           categoryId,
-          providerId,
+          supplierId,
           activo: createProductDto.activo ?? true,
         },
         include: {
           category: true,
-          provider: true,
+          supplier: true,
         },
       });
     } catch (error) {
@@ -99,7 +99,7 @@ export class ProductsService {
       where,
       include: {
         category: true,
-        provider: true,
+        supplier: true,
       },
       orderBy: [{ nombre: 'asc' }],
     });
@@ -130,8 +130,8 @@ export class ProductsService {
     });
   }
 
-  async findProviders(filters: ProviderFilters) {
-    const where: Prisma.ProviderWhereInput = {};
+  async findSuppliers(filters: SupplierFilters) {
+    const where: Prisma.SupplierWhereInput = {};
 
     if (!filters.includeInactive) {
       where.activo = true;
@@ -144,7 +144,7 @@ export class ProductsService {
       };
     }
 
-    return this.prisma.provider.findMany({
+    return (this.prisma as any).supplier.findMany({
       where,
       select: {
         id: true,
@@ -161,7 +161,7 @@ export class ProductsService {
       where: { id },
       include: {
         category: true,
-        provider: true,
+        supplier: true,
       },
     });
 
@@ -204,19 +204,19 @@ export class ProductsService {
       };
     }
 
-    if (updateProductDto.providerId !== undefined) {
-      const providerId = this.parseNullablePositiveInt(
-        updateProductDto.providerId,
-        'providerId',
+    if (updateProductDto.supplierId !== undefined) {
+      const supplierId = this.parseNullablePositiveInt(
+        updateProductDto.supplierId,
+        'supplierId',
       );
-      if (providerId === null) {
-        data.provider = {
+      if (supplierId === null) {
+        data.supplier = {
           disconnect: true,
         };
       } else {
-        await this.ensureProviderExists(providerId);
-        data.provider = {
-          connect: { id: providerId },
+        await this.ensureSupplierExists(supplierId);
+        data.supplier = {
+          connect: { id: supplierId },
         };
       }
     }
@@ -238,7 +238,7 @@ export class ProductsService {
         data,
         include: {
           category: true,
-          provider: true,
+          supplier: true,
         },
       });
     } catch (error) {
@@ -324,7 +324,7 @@ export class ProductsService {
       return null;
     }
 
-    return this.parsePositiveInt(value, field);
+    return this.parsePositiveInt(value as number, field);
   }
 
   private async ensureCategoryExists(categoryId: number): Promise<void> {
@@ -338,13 +338,13 @@ export class ProductsService {
     }
   }
 
-  private async ensureProviderExists(providerId: number): Promise<void> {
-    const provider = await this.prisma.provider.findFirst({
-      where: { id: providerId, activo: true },
+  private async ensureSupplierExists(supplierId: number): Promise<void> {
+    const supplier = await (this.prisma as any).supplier.findFirst({
+      where: { id: supplierId, activo: true },
       select: { id: true },
     });
 
-    if (!provider) {
+    if (!supplier) {
       throw new NotFoundException('Proveedor no encontrado o inactivo');
     }
   }

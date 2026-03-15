@@ -32,6 +32,14 @@ export class CreateProductDto {
   })
   stock?: number;
 
+  @ApiPropertyOptional({
+    description: 'Stock minimo para alertas',
+    example: 10,
+    minimum: 0,
+    default: 0,
+  })
+  min_stock?: number;
+
   @ApiProperty({
     description: 'ID de la categoria activa',
     example: 1,
@@ -43,7 +51,7 @@ export class CreateProductDto {
     example: 1,
     nullable: true,
   })
-  providerId?: number | null;
+  supplierId?: number | null;
 
   @ApiPropertyOptional({
     description: 'Estado activo del producto',

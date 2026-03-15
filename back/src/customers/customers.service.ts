@@ -23,6 +23,7 @@ export class CustomersService {
     return this.prisma.customer.create({
       data: {
         nombre,
+        documento: createCustomerDto.documento,
         telefono: this.normalizePhone(createCustomerDto.telefono),
         email: this.normalizeEmail(createCustomerDto.email),
         activo: createCustomerDto.activo ?? true,
@@ -41,6 +42,7 @@ export class CustomersService {
       const search = filters.search.trim();
       where.OR = [
         { nombre: { contains: search, mode: 'insensitive' } },
+        { documento: { contains: search, mode: 'insensitive' } },
         { telefono: { contains: search, mode: 'insensitive' } },
         { email: { contains: search, mode: 'insensitive' } },
       ];
@@ -77,6 +79,10 @@ export class CustomersService {
       data.telefono = this.normalizePhone(
         updateCustomerDto.telefono ?? undefined,
       );
+    }
+
+    if (updateCustomerDto.documento !== undefined) {
+      data.documento = updateCustomerDto.documento;
     }
 
     if (updateCustomerDto.email !== undefined) {

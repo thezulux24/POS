@@ -3,11 +3,12 @@
 .terminal-page {
   --bg-surface: #ffffff;
   --bg-soft: #f8f8f5;
-  --text-main: #1f2937;
-  --text-muted: #6b7280;
-  --text-inverse: #f9fafb;
-  --border-soft: #e5e7eb;
-  --shadow-card: 0 18px 40px rgba(17, 24, 39, 0.09);
+  --text-main: #111827;
+  --text-muted: #4b5563;
+  --text-inverse: #ffffff;
+  --border-soft: #94a3b8;
+  --border-focus: #111827;
+  --shadow-card: 0 10px 25px rgba(0, 0, 0, 0.05);
   --header-font: 'Archivo Narrow', 'Arial Narrow', sans-serif;
   --body-font: 'Public Sans', 'Segoe UI', sans-serif;
   --warning: #b91c1c;
@@ -306,14 +307,21 @@
 }
 
 .terminal-field {
-  border: 1px solid var(--border-soft);
-  background: #fff;
+  border: 1.5px solid var(--border-soft);
+  background: #ffffff;
   border-radius: 11px;
-  padding: 9px 11px;
+  padding: 10px 12px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  color: #6b7280;
+  gap: 10px;
+  color: #4b5563;
+  transition: all 0.2s ease;
+}
+
+.terminal-field:focus-within {
+  border-color: #000000;
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.1);
+  background: #fdfdfd;
 }
 
 .terminal-field input,
@@ -323,9 +331,10 @@
   border: none;
   outline: none;
   background: transparent;
-  font-size: 13px;
-  color: var(--text-main);
+  font-size: 14px;
+  color: #000000 !important;
   font-family: var(--body-font);
+  font-weight: 600;
 }
 
 .terminal-field select {
@@ -359,9 +368,10 @@
 .terminal-mini-label {
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-weight: 700;
-  color: var(--text-muted);
+  letter-spacing: 0.1em;
+  font-weight: 950;
+  color: #000000 !important;
+  opacity: 1 !important;
 }
 
 .terminal-form-grid {
@@ -754,3 +764,54 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* --- Utility Classes (Tailwind-like support) --- */
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.items-center { align-items: center; }
+.justify-center { justify-content: center; }
+.justify-between { justify-content: space-between; }
+.justify-end { justify-content: flex-end; }
+.gap-1 { gap: 4px; }
+.gap-2 { gap: 8px; }
+.gap-3 { gap: 12px; }
+.gap-4 { gap: 16px; }
+
+.font-medium { font-weight: 500; }
+.font-semibold { font-weight: 600; }
+.font-bold { font-weight: 700; }
+.font-extrabold { font-weight: 800; }
+
+.text-xs { font-size: 11px; }
+.text-sm { font-size: 13px; }
+.text-base { font-size: 15px; }
+.text-lg { font-size: 18px; }
+.text-xl { font-size: 21px; }
+
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+.text-muted { color: var(--text-muted); }
+.text-white { color: #ffffff; }
+
+.mt-1 { margin-top: 4px; }
+.mt-2 { margin-top: 8px; }
+.mt-4 { margin-top: 16px; }
+.mb-1 { margin-bottom: 4px; }
+.mb-2 { margin-bottom: 8px; }
+.mb-4 { margin-bottom: 16px; }
+
+.w-full { width: 100%; }
+.h-full { height: 100%; }
+
+.uppercase { text-transform: uppercase; }
+
+/* Custom Scrollbar for Shells */
+.terminal-table-scroll::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+.terminal-table-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+

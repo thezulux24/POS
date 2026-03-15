@@ -8,7 +8,6 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { Role } from '@prisma/client';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -38,7 +37,7 @@ export class SalesController {
   constructor(private readonly salesService: SalesService) {}
 
   @Post()
-  @Roles(Role.ADMIN, Role.VENDEDOR)
+  @Roles('ADMIN', 'VENDEDOR')
   @ApiOperation({ summary: 'Registrar venta con detalle' })
   @ApiCreatedResponse({ description: 'Venta registrada exitosamente.' })
   @ApiBadRequestResponse({ description: 'Datos de venta invalidos.' })
@@ -50,7 +49,7 @@ export class SalesController {
   }
 
   @Get('reports/daily')
-  @Roles(Role.ADMIN, Role.VENDEDOR)
+  @Roles('ADMIN', 'VENDEDOR')
   @ApiOperation({ summary: 'Reporte simple de ventas del dia' })
   @ApiQuery({
     name: 'date',
@@ -83,7 +82,7 @@ export class SalesController {
   }
 
   @Get('reports/vendors')
-  @Roles(Role.ADMIN)
+  @Roles('ADMIN')
   @ApiOperation({ summary: 'Listar vendedores activos para filtro de reportes' })
   @ApiOkResponse({ description: 'Listado de vendedores.' })
   @ApiForbiddenResponse({ description: 'Solo ADMIN puede listar vendedores.' })
@@ -92,7 +91,7 @@ export class SalesController {
   }
 
   @Get(':id/ticket')
-  @Roles(Role.ADMIN, Role.VENDEDOR)
+  @Roles('ADMIN', 'VENDEDOR')
   @ApiOperation({ summary: 'Obtener ticket imprimible de una venta' })
   @ApiParam({ name: 'id', type: Number, description: 'ID de la venta' })
   @ApiOkResponse({ description: 'Ticket generado.' })
@@ -102,12 +101,33 @@ export class SalesController {
   }
 
   @Get(':id')
-  @Roles(Role.ADMIN, Role.VENDEDOR)
+  @Roles('ADMIN', 'VENDEDOR')
   @ApiOperation({ summary: 'Obtener venta por ID' })
   @ApiParam({ name: 'id', type: Number, description: 'ID de la venta' })
   @ApiOkResponse({ description: 'Venta encontrada.' })
   @ApiBadRequestResponse({ description: 'ID invalido.' })
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.salesService.findOne(id);
+  }
+
+  @Get('customer/:id/history')
+  @Roles('ADMIN', 'VENDEDOR')
+  @ApiOperation({ summary: 'Historial de compras de un cliente' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID del cliente' })
+  @ApiOkResponse({ description: 'Historial obtenido.' })
+  @ApiBadRequestResponse({ description: 'ID invalido.' })
+  getCustomerHistory(@Param('id', ParseIntPipe) id: number) {
+    return this.salesService.findByCustomer(id);
+  }
+
+  @Post(':id/cancel')
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Anular una venta (ADMIN)' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID de la venta a anular' })
+  @ApiOkResponse({ description: 'Venta anulada exitosamente.' })
+  @ApiBadRequestResponse({ description: 'ID de venta invalido o venta no anulable.' })
+  @ApiForbiddenResponse({ description: 'Solo ADMIN puede anular ventas.' })
+  cancel(@Param('id', ParseIntPipe) id: number) {
+    return this.salesService.cancel(id);
   }
 }

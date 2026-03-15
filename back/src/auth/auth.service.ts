@@ -19,16 +19,22 @@ export class AuthService {
     const normalizedEmail = email.trim().toLowerCase();
     const user = await this.prisma.user.findUnique({
       where: { email: normalizedEmail },
+      include: {
+        roles: {
+          include: { role: true },
+        },
+      },
     });
 
     if (user && user.activo) {
       const isMatch = await bcrypt.compare(pass, user.password_hash);
       if (isMatch) {
+        const roleName = user.roles?.[0]?.role?.nombre || 'VENDEDOR';
         return {
           id: user.id,
           nombre: user.nombre,
           email: user.email,
-          rol: user.rol,
+          rol: roleName,
         };
       }
     }

@@ -11,7 +11,6 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { Role } from '@prisma/client';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -40,7 +39,7 @@ export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
 
   @Post()
-  @Roles(Role.ADMIN)
+  @Roles('ADMIN')
   @ApiOperation({ summary: 'Crear categoria' })
   @ApiCreatedResponse({ description: 'Categoria creada exitosamente.' })
   @ApiBadRequestResponse({ description: 'Datos de categoria invalidos.' })
@@ -50,7 +49,7 @@ export class CategoriesController {
   }
 
   @Get()
-  @Roles(Role.ADMIN, Role.VENDEDOR)
+  @Roles('ADMIN', 'VENDEDOR')
   @ApiOperation({ summary: 'Listar categorias' })
   @ApiQuery({
     name: 'includeInactive',
@@ -77,7 +76,7 @@ export class CategoriesController {
   }
 
   @Get(':id')
-  @Roles(Role.ADMIN, Role.VENDEDOR)
+  @Roles('ADMIN', 'VENDEDOR')
   @ApiOperation({ summary: 'Obtener categoria por ID' })
   @ApiParam({ name: 'id', type: Number, description: 'ID de la categoria' })
   @ApiOkResponse({ description: 'Categoria encontrada.' })
@@ -87,7 +86,7 @@ export class CategoriesController {
   }
 
   @Patch(':id')
-  @Roles(Role.ADMIN)
+  @Roles('ADMIN')
   @ApiOperation({ summary: 'Actualizar categoria' })
   @ApiParam({ name: 'id', type: Number, description: 'ID de la categoria' })
   @ApiOkResponse({ description: 'Categoria actualizada.' })
@@ -103,7 +102,7 @@ export class CategoriesController {
   }
 
   @Delete(':id')
-  @Roles(Role.ADMIN)
+  @Roles('ADMIN')
   @ApiOperation({ summary: 'Eliminar categoria (soft delete)' })
   @ApiParam({ name: 'id', type: Number, description: 'ID de la categoria' })
   @ApiOkResponse({ description: 'Categoria marcada como inactiva.' })

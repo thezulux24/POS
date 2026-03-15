@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,21 +7,31 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  ADMIN
-  VENDEDOR
+model Role {
+  id     Int        @id @default(autoincrement())
+  nombre String     @unique
+  users  UserRole[]
 }
 
 model User {
-  id            Int      @id @default(autoincrement())
+  id            Int        @id @default(autoincrement())
   nombre        String
-  email         String   @unique
+  email         String     @unique
   password_hash String
-  rol           Role     @default(VENDEDOR)
-  activo        Boolean  @default(true)
+  activo        Boolean    @default(true)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
   sales         Sale[]
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  roles         UserRole[]
+}
+
+model UserRole {
+  userId Int
+  roleId Int
+  role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
 }
 
 model Category {
@@ -37,62 +41,90 @@ model Category {
   products Product[]
 }
 
-model Provider {
-  id       Int       @id @default(autoincrement())
-  nombre   String
-  telefono String?
-  email    String?
+model Supplier {
+  id        Int       @id @default(autoincrement())
+  nombre    String
+  contacto  String?
+  telefono  String?
+  email     String?
   direccion String?
-  activo   Boolean   @default(true)
-  products Product[]
+  activo    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  products  Product[]
 }
 
 model Product {
-  id          Int        @id @default(autoincrement())
-  codigo      String     @unique
-  nombre      String
-  precio      Decimal    @db.Decimal(10, 2)
-  stock       Int        @default(0)
-  activo      Boolean    @default(true)
-  category    Category   @relation(fields: [categoryId], references: [id])
-  categoryId  Int
-  provider    Provider?  @relation(fields: [providerId], references: [id])
-  providerId  Int?
-  saleItems   SaleItem[]
+  id         Int             @id @default(autoincrement())
+  codigo     String          @unique
+  nombre     String
+  precio     Decimal         @db.Decimal(10, 2)
+  stock      Int             @default(0)
+  activo     Boolean         @default(true)
+  categoryId Int
+  min_stock  Int             @default(0)
+  supplierId Int?
+  category   Category        @relation(fields: [categoryId], references: [id])
+  supplier   Supplier?       @relation(fields: [supplierId], references: [id])
+  saleItems  SaleItem[]
+  movements  StockMovement[]
 
   @@index([codigo])
 }
 
+model StockMovement {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  cantidad  Int
+  tipo      String
+  motivo    String?
+  fecha     DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id])
+}
+
 model Customer {
-  id       Int      @id @default(autoincrement())
-  nombre   String
-  telefono String?
-  email    String?
-  activo   Boolean  @default(true)
-  sales    Sale[]
+  id        Int      @id @default(autoincrement())
+  documento String?  @unique
+  nombre    String
+  telefono  String?
+  email     String?
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  sales     Sale[]
 }
 
 model Sale {
-  id         Int        @id @default(autoincrement())
-  vendedor   User       @relation(fields: [vendedorId], references: [id])
-  vendedorId Int
-  cliente    Customer?  @relation(fields: [clienteId], references: [id])
-  clienteId  Int?
-  total      Decimal    @db.Decimal(10, 2)
-  fecha      DateTime   @default(now())
-  estado     String     @default("COMPLETED")
-  saleItems  SaleItem[]
+  id          Int              @id @default(autoincrement())
+  vendedorId  Int
+  clienteId   Int?
+  total       Decimal          @db.Decimal(10, 2)
+  fecha       DateTime         @default(now())
+  estado      String           @default("COMPLETED")
+  cliente     Customer?        @relation(fields: [clienteId], references: [id])
+  vendedor    User             @relation(fields: [vendedorId], references: [id])
+  adjustments SaleAdjustment[]
+  saleItems   SaleItem[]
 
   @@index([fecha])
 }
 
 model SaleItem {
-  id             Int     @id @default(autoincrement())
-  sale           Sale    @relation(fields: [saleId], references: [id])
-  saleId         Int
-  product        Product @relation(fields: [productId], references: [id])
-  productId      Int
-  cantidad       Int
+  id              Int     @id @default(autoincrement())
+  saleId          Int
+  productId       Int
+  cantidad        Int
   precio_unitario Decimal @db.Decimal(10, 2)
-  subtotal       Decimal @db.Decimal(10, 2)
+  subtotal        Decimal @db.Decimal(10, 2)
+  product         Product @relation(fields: [productId], references: [id])
+  sale            Sale    @relation(fields: [saleId], references: [id])
+}
+
+model SaleAdjustment {
+  id     Int      @id @default(autoincrement())
+  saleId Int
+  tipo   String
+  motivo String?
+  fecha  DateTime @default(now())
+  sale   Sale     @relation(fields: [saleId], references: [id])
 }

@@ -37,8 +37,10 @@ export class SessionAuthGuard implements CanActivate {
         id: true,
         nombre: true,
         email: true,
-        rol: true,
         activo: true,
+        roles: {
+          include: { role: true },
+        },
       },
     });
 
@@ -46,11 +48,13 @@ export class SessionAuthGuard implements CanActivate {
       throw new UnauthorizedException('Usuario no autorizado');
     }
 
+    const roleName = user.roles?.[0]?.role?.nombre || 'VENDEDOR';
+
     request.user = {
       id: user.id,
       nombre: user.nombre,
       email: user.email,
-      rol: user.rol,
+      rol: roleName,
     };
 
     return true;

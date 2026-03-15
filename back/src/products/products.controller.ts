@@ -11,7 +11,6 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { Role } from '@prisma/client';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -31,7 +30,7 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import {
   type ProductFilters,
-  type ProviderFilters,
+  type SupplierFilters,
   ProductsService,
 } from './products.service';
 
@@ -44,7 +43,7 @@ export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Post()
-  @Roles(Role.ADMIN)
+  @Roles('ADMIN')
   @ApiOperation({ summary: 'Crear producto' })
   @ApiCreatedResponse({ description: 'Producto creado exitosamente.' })
   @ApiBadRequestResponse({ description: 'Datos de producto invalidos.' })
@@ -54,7 +53,7 @@ export class ProductsController {
   }
 
   @Get('search')
-  @Roles(Role.ADMIN, Role.VENDEDOR)
+  @Roles('ADMIN', 'VENDEDOR')
   @ApiOperation({ summary: 'Busqueda rapida de productos para terminal' })
   @ApiQuery({
     name: 'q',
@@ -71,7 +70,7 @@ export class ProductsController {
   }
 
   @Get('providers')
-  @Roles(Role.ADMIN, Role.VENDEDOR)
+  @Roles('ADMIN', 'VENDEDOR')
   @ApiOperation({ summary: 'Listar proveedores para productos' })
   @ApiQuery({ name: 'search', required: false, type: String })
   @ApiQuery({
@@ -82,20 +81,20 @@ export class ProductsController {
   })
   @ApiOkResponse({ description: 'Listado de proveedores.' })
   @ApiBadRequestResponse({ description: 'Filtros invalidos.' })
-  findProviders(
+  findSuppliers(
     @Query('search') search?: string,
     @Query('includeInactive') includeInactive?: string,
   ) {
-    const filters: ProviderFilters = {
+    const filters: SupplierFilters = {
       search,
       includeInactive: this.parseBoolean(includeInactive),
     };
 
-    return this.productsService.findProviders(filters);
+    return this.productsService.findSuppliers(filters);
   }
 
   @Get()
-  @Roles(Role.ADMIN, Role.VENDEDOR)
+  @Roles('ADMIN', 'VENDEDOR')
   @ApiOperation({ summary: 'Listar productos' })
   @ApiQuery({ name: 'search', required: false, type: String })
   @ApiQuery({ name: 'categoryId', required: false, type: String })
@@ -130,7 +129,7 @@ export class ProductsController {
   }
 
   @Get(':id')
-  @Roles(Role.ADMIN, Role.VENDEDOR)
+  @Roles('ADMIN', 'VENDEDOR')
   @ApiOperation({ summary: 'Obtener producto por ID' })
   @ApiParam({ name: 'id', type: Number, description: 'ID del producto' })
   @ApiOkResponse({ description: 'Producto encontrado.' })
@@ -140,7 +139,7 @@ export class ProductsController {
   }
 
   @Patch(':id')
-  @Roles(Role.ADMIN)
+  @Roles('ADMIN')
   @ApiOperation({ summary: 'Actualizar producto' })
   @ApiParam({ name: 'id', type: Number, description: 'ID del producto' })
   @ApiOkResponse({ description: 'Producto actualizado.' })
@@ -156,7 +155,7 @@ export class ProductsController {
   }
 
   @Delete(':id')
-  @Roles(Role.ADMIN)
+  @Roles('ADMIN')
   @ApiOperation({ summary: 'Eliminar producto (soft delete)' })
   @ApiParam({ name: 'id', type: Number, description: 'ID del producto' })
   @ApiOkResponse({ description: 'Producto marcado como inactivo.' })

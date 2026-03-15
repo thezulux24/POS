@@ -1,5 +1,4 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { Role } from '@prisma/client';
 import { createHmac, timingSafeEqual } from 'crypto';
 import type { SessionTokenPayload } from './auth.types';
 
@@ -11,7 +10,7 @@ export class SessionTokenService {
     process.env.SESSION_TTL_SECONDS ?? 60 * 60 * 8,
   );
 
-  issueToken(userId: number, role: Role) {
+  issueToken(userId: number, role: string) {
     const iat = Math.floor(Date.now() / 1000);
     const exp = iat + this.sessionTtlSeconds;
     const payload: SessionTokenPayload = { userId, role, iat, exp };
@@ -62,7 +61,7 @@ export class SessionTokenService {
       if (
         typeof decoded.userId !== 'number' ||
         !Number.isInteger(decoded.userId) ||
-        !Object.values(Role).includes(decoded.role as Role) ||
+        typeof decoded.role !== 'string' ||
         typeof decoded.iat !== 'number' ||
         typeof decoded.exp !== 'number'
       ) {

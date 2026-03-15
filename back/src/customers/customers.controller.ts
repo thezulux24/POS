@@ -11,7 +11,6 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { Role } from '@prisma/client';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -40,7 +39,7 @@ export class CustomersController {
   constructor(private readonly customersService: CustomersService) {}
 
   @Post()
-  @Roles(Role.ADMIN, Role.VENDEDOR)
+  @Roles('ADMIN', 'VENDEDOR')
   @ApiOperation({ summary: 'Crear cliente' })
   @ApiCreatedResponse({ description: 'Cliente creado exitosamente.' })
   @ApiBadRequestResponse({ description: 'Datos de cliente invalidos.' })
@@ -49,7 +48,7 @@ export class CustomersController {
   }
 
   @Get()
-  @Roles(Role.ADMIN, Role.VENDEDOR)
+  @Roles('ADMIN', 'VENDEDOR')
   @ApiOperation({ summary: 'Listar clientes' })
   @ApiQuery({ name: 'search', required: false, type: String })
   @ApiQuery({
@@ -71,7 +70,7 @@ export class CustomersController {
   }
 
   @Get(':id')
-  @Roles(Role.ADMIN, Role.VENDEDOR)
+  @Roles('ADMIN', 'VENDEDOR')
   @ApiOperation({ summary: 'Obtener cliente por ID' })
   @ApiParam({ name: 'id', type: Number, description: 'ID del cliente' })
   @ApiOkResponse({ description: 'Cliente encontrado.' })
@@ -81,7 +80,7 @@ export class CustomersController {
   }
 
   @Patch(':id')
-  @Roles(Role.ADMIN, Role.VENDEDOR)
+  @Roles('ADMIN', 'VENDEDOR')
   @ApiOperation({ summary: 'Actualizar cliente' })
   @ApiParam({ name: 'id', type: Number, description: 'ID del cliente' })
   @ApiOkResponse({ description: 'Cliente actualizado.' })
@@ -94,7 +93,7 @@ export class CustomersController {
   }
 
   @Delete(':id')
-  @Roles(Role.ADMIN)
+  @Roles('ADMIN')
   @ApiOperation({ summary: 'Eliminar cliente (soft delete)' })
   @ApiParam({ name: 'id', type: Number, description: 'ID del cliente' })
   @ApiOkResponse({ description: 'Cliente marcado como inactivo.' })

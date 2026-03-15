@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, Role } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { CreateSaleDto } from './dto/create-sale.dto';
@@ -17,7 +17,9 @@ const saleInclude = {
       id: true,
       nombre: true,
       email: true,
-      rol: true,
+      roles: {
+        include: { role: true },
+      },
     },
   },
   cliente: {
@@ -205,6 +207,64 @@ export class SalesService {
     };
   }
 
+  async findByCustomer(customerId: number) {
+    return this.prisma.sale.findMany({
+      where: { clienteId: customerId },
+      include: {
+        vendedor: { select: { nombre: true } },
+      },
+      orderBy: { fecha: 'desc' },
+    });
+  }
+
+  async cancel(id: number) {
+    const sale = await this.prisma.sale.findUnique({
+      where: { id },
+      include: { saleItems: true },
+    });
+
+    if (!sale) throw new NotFoundException('Venta no encontrada');
+    if (sale.estado === 'CANCELLED') {
+      throw new BadRequestException('La venta ya está anulada');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Update sale status
+      const updatedSale = await tx.sale.update({
+        where: { id },
+        data: { estado: 'CANCELLED' },
+      });
+
+      // 2. Restore stock and record movement for each item
+      for (const item of sale.saleItems) {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { stock: { increment: item.cantidad } },
+        });
+
+        await tx.stockMovement.create({
+          data: {
+            productId: item.productId,
+            cantidad: item.cantidad,
+            tipo: 'ENTRADA',
+            motivo: `ANULACION VENTA #${sale.id}`,
+          },
+        });
+      }
+
+      // 3. Record sale adjustment
+      await tx.saleAdjustment.create({
+        data: {
+          saleId: id,
+          tipo: 'CANCELACION',
+          motivo: 'Anulación manual por administrador',
+        },
+      });
+
+      return updatedSale;
+    });
+  }
+
   async getDailyReport(
     user: AuthenticatedUser,
     date?: string,
@@ -218,7 +278,7 @@ export class SalesService {
 
     let vendedorIdFilter: number | undefined;
 
-    if (user.rol === Role.ADMIN) {
+    if (user.rol === 'ADMIN') {
       vendedorIdFilter = requestedVendedorId;
     } else {
       if (requestedVendedorId && requestedVendedorId !== user.id) {
@@ -244,7 +304,9 @@ export class SalesService {
             id: true,
             nombre: true,
             email: true,
-            rol: true,
+            roles: {
+              include: { role: true },
+            },
           },
         },
         cliente: {
@@ -284,7 +346,13 @@ export class SalesService {
     const vendors = await this.prisma.user.findMany({
       where: {
         activo: true,
-        rol: Role.VENDEDOR,
+        roles: {
+          some: {
+            role: {
+              nombre: 'VENDEDOR',
+            },
+          },
+        },
       },
       select: {
         id: true,

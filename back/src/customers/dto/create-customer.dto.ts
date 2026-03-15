@@ -9,6 +9,14 @@ export class CreateCustomerDto {
   })
   nombre!: string;
 
+  @ApiProperty({
+    description: 'Documento o NIT del cliente',
+    example: '123456789',
+    minLength: 5,
+    maxLength: 30,
+  })
+  documento!: string;
+
   @ApiPropertyOptional({
     description: 'Telefono del cliente',
     example: '3151112233',

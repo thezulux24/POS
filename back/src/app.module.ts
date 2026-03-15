@@ -7,6 +7,10 @@ import { CategoriesModule } from './categories/categories.module';
 import { ProductsModule } from './products/products.module';
 import { SalesModule } from './sales/sales.module';
 import { CustomersModule } from './customers/customers.module';
+import { UsersModule } from './users/users.module';
+import { SuppliersModule } from './suppliers/suppliers.module';
+import { StockModule } from './stock/stock.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -16,6 +20,10 @@ import { CustomersModule } from './customers/customers.module';
     ProductsModule,
     CustomersModule,
     SalesModule,
+    UsersModule,
+    SuppliersModule,
+    StockModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
