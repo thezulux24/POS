@@ -27,26 +27,44 @@ El sistema es un punto de venta (POS) en linea que permite la gestion de inventa
 - **Por que:** **PostgreSQL** es un motor de base de datos relacional altamente confiable para manejar transacciones de ventas. **Prisma** se integra perfectamente con NestJS para ofrecer un acceso a datos con seguridad de tipos (Type-safe), facilitando las migraciones y el modelado de la base de datos.
 
 ## Modelo de Base de Datos
-A continuacion se presenta el diagrama de entidad-relacion del sistema:
+A continuación se presenta el diagrama entidad-relación del sistema:
 
 ```mermaid
 erDiagram
+    ROLE ||--o{ USER_ROLE : "asignado en"
+    USER ||--o{ USER_ROLE : "tiene"
+
     USER ||--o{ SALE : "realiza (vendedor)"
-    CATEGORY ||--o{ PRODUCT : "contiene"
-    PROVIDER |o--o{ PRODUCT : "suministra"
     CUSTOMER |o--o{ SALE : "compra"
+
+    CATEGORY ||--o{ PRODUCT : "contiene"
+    SUPPLIER |o--o{ PRODUCT : "suministra"
+
     SALE ||--|{ SALE_ITEM : "contiene"
-    PRODUCT ||--|{ SALE_ITEM : "incluido en"
+    PRODUCT ||--o{ SALE_ITEM : "incluido en"
+
+    PRODUCT ||--o{ STOCK_MOVEMENT : "genera"
+
+    SALE ||--o{ SALE_ADJUSTMENT : "tiene"
+
+    ROLE {
+        Int id PK
+        String nombre UK
+    }
 
     USER {
         Int id PK
         String nombre
         String email UK
         String password_hash
-        Role rol
         Boolean activo
         DateTime createdAt
         DateTime updatedAt
+    }
+
+    USER_ROLE {
+        Int userId PK, FK
+        Int roleId PK, FK
     }
 
     CATEGORY {
@@ -55,13 +73,16 @@ erDiagram
         Boolean activo
     }
 
-    PROVIDER {
+    SUPPLIER {
         Int id PK
         String nombre
+        String contacto
         String telefono
         String email
         String direccion
         Boolean activo
+        DateTime createdAt
+        DateTime updatedAt
     }
 
     PRODUCT {
@@ -72,15 +93,28 @@ erDiagram
         Int stock
         Boolean activo
         Int categoryId FK
-        Int providerId FK
+        Int min_stock
+        Int supplierId FK
+    }
+
+    STOCK_MOVEMENT {
+        Int id PK
+        Int productId FK
+        Int cantidad
+        String tipo
+        String motivo
+        DateTime fecha
     }
 
     CUSTOMER {
         Int id PK
+        String documento UK
         String nombre
         String telefono
         String email
         Boolean activo
+        DateTime createdAt
+        DateTime updatedAt
     }
 
     SALE {
@@ -99,6 +133,14 @@ erDiagram
         Int cantidad
         Decimal precio_unitario
         Decimal subtotal
+    }
+
+    SALE_ADJUSTMENT {
+        Int id PK
+        Int saleId FK
+        String tipo
+        String motivo
+        DateTime fecha
     }
 ```
 
