@@ -15,6 +15,10 @@ export const categoryService = {
         const response = await axios.patch(`${API_URL}/${id}`, payload);
         return response.data;
     },
+    setActive: async (id, activo) => {
+        const response = await axios.patch(`${API_URL}/${id}`, { activo });
+        return response.data;
+    },
     remove: async (id) => {
         const response = await axios.delete(`${API_URL}/${id}`);
         return response.data;

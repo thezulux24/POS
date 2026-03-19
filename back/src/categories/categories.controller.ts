@@ -49,7 +49,7 @@ export class CategoriesController {
   }
 
   @Get()
-  @Roles('ADMIN', 'VENDEDOR')
+  @Roles('ADMIN')
   @ApiOperation({ summary: 'Listar categorias' })
   @ApiQuery({
     name: 'includeInactive',
@@ -76,7 +76,7 @@ export class CategoriesController {
   }
 
   @Get(':id')
-  @Roles('ADMIN', 'VENDEDOR')
+  @Roles('ADMIN')
   @ApiOperation({ summary: 'Obtener categoria por ID' })
   @ApiParam({ name: 'id', type: Number, description: 'ID de la categoria' })
   @ApiOkResponse({ description: 'Categoria encontrada.' })

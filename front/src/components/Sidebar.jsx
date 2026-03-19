@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { 
   BarChart3, 
   Package, 
+  Layers,
   Users, 
   Truck, 
   ShoppingCart, 
@@ -27,6 +28,7 @@ const Sidebar = () => {
   const navItems = [
     { name: 'Panel Principal', path: '/admin/dashboard', icon: LayoutDashboard },
     { name: 'Inventario', path: '/admin/inventory', icon: Package },
+    { name: 'Categorias', path: '/admin/categories', icon: Layers },
     { name: 'Ventas', path: '/admin/sales', icon: ShoppingCart },
     { name: 'Clientes', path: '/admin/customers', icon: Users },
     { name: 'Vendedores', path: '/admin/users', icon: UserCircle2 },
