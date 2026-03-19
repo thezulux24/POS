@@ -6,6 +6,7 @@ import CustomersView from './admin/CustomersView';
 import UsersView from './admin/UsersView';
 import SuppliersView from './admin/SuppliersView';
 import ReportsView from './admin/ReportsView';
+import CategoriesView from './admin/CategoriesView';
 import './terminal-templates.css';
 
 const AdminTerminal = ({ defaultView = 'dashboard' }) => {
@@ -29,6 +30,8 @@ const AdminTerminal = ({ defaultView = 'dashboard' }) => {
         return <UsersView />;
       case 'suppliers':
         return <SuppliersView />;
+      case 'categories':
+        return <CategoriesView />;
       case 'reports':
         return <ReportsView />;
       default:

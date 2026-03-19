@@ -15,6 +15,7 @@ const CustomersPlaceholder = () => <AdminTerminal defaultView="customers" />;
 const UsersPlaceholder = () => <AdminTerminal defaultView="users" />;
 const SuppliersPlaceholder = () => <AdminTerminal defaultView="suppliers" />;
 const ReportsPlaceholder = () => <AdminTerminal defaultView="reports" />;
+const CategoriesPlaceholder = () => <AdminTerminal defaultView="categories" />;
 
 function App() {
   return (
@@ -34,6 +35,7 @@ function App() {
                   <Route path="customers" element={<CustomersPlaceholder />} />
                   <Route path="users" element={<UsersPlaceholder />} />
                   <Route path="suppliers" element={<SuppliersPlaceholder />} />
+                  <Route path="categories" element={<CategoriesPlaceholder />} />
                   <Route path="reports" element={<ReportsPlaceholder />} />
                   <Route path="" element={<Navigate to="dashboard" replace />} />
                 </Routes>
