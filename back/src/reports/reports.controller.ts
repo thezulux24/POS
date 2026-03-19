@@ -30,6 +30,30 @@ export class ReportsController {
     return this.reportsService.getTopProducts(limit ? parseInt(limit) : 5);
   }
 
+  @Get('dashboard/sales-by-period')
+  @ApiOperation({ summary: 'Obtener ventas agregadas por día, semana o mes (ADMIN)' })
+  getSalesByPeriod(
+    @Query('period') period?: string,
+    @Query('points') points?: string,
+  ) {
+    return this.reportsService.getSalesByPeriod(
+      period,
+      points ? parseInt(points) : undefined,
+    );
+  }
+
+  @Get('dashboard/top-products-by-period')
+  @ApiOperation({ summary: 'Obtener productos más vendidos para el período actual (ADMIN)' })
+  getTopProductsByPeriod(
+    @Query('period') period?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.reportsService.getTopProductsByPeriod(
+      period,
+      limit ? parseInt(limit) : 5,
+    );
+  }
+
   @Get('detailed')
   @ApiOperation({ summary: 'Obtener reporte detallado por fechas (ADMIN)' })
   getDetailedReport(

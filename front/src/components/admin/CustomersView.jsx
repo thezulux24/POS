@@ -64,13 +64,15 @@ const CustomersView = () => {
   return (
     <div className="view-panel">
       <header className="terminal-header" style={{ border: 'none', background: 'transparent', padding: '0 0 24px', boxShadow: 'none' }}>
-        <div className="terminal-badge terminal-badge-admin">
-          <UserCircle size={24} />
-        </div>
-        <div className="terminal-meta">
-          <span className="terminal-kicker">CRM</span>
-          <h1 className="terminal-title">Clientes</h1>
-          <p className="terminal-subtitle">Gestión de lealtad y seguimiento comercial.</p>
+        <div className="terminal-header-main">
+          <div className="terminal-badge terminal-badge-admin">
+            <UserCircle size={24} />
+          </div>
+          <div className="terminal-meta">
+            <span className="terminal-kicker">CRM</span>
+            <h1 className="terminal-title">Clientes</h1>
+            <p className="terminal-subtitle">Gestión de lealtad y seguimiento comercial.</p>
+          </div>
         </div>
       </header>
 

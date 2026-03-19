@@ -14,6 +14,7 @@ import { supplierService } from '../../services/supplierService';
 
 const SuppliersView = () => {
   const [suppliers, setSuppliers] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
@@ -47,6 +48,12 @@ const SuppliersView = () => {
   useEffect(() => {
     loadSuppliers();
   }, []);
+
+  const filteredSuppliers = suppliers.filter((supplier) => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return true;
+    return supplier.nombre?.toLowerCase().includes(term);
+  });
 
   const openModal = (supplier = null) => {
     setSelectedSupplier(supplier);
@@ -118,6 +125,21 @@ const SuppliersView = () => {
            </button>
         </div>
 
+        <div style={{ maxWidth: '420px', marginTop: '8px' }}>
+          <label className="terminal-field-group">
+            <span className="terminal-mini-label">Buscar proveedor por nombre</span>
+            <div className="terminal-field">
+              <Search size={14} />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Escribe nombre completo o parcial"
+              />
+            </div>
+          </label>
+        </div>
+
         <div className="terminal-table" style={{ marginTop: '10px' }}>
           <div className="terminal-head" style={{ '--columns': '1.5fr 1fr 1fr 1.2fr 0.8fr' }}>
             <span>Proveedor</span>
@@ -130,8 +152,10 @@ const SuppliersView = () => {
              <div style={{ padding: '40px', textAlign: 'center' }}>Cargando proveedores...</div>
           ) : suppliers.length === 0 ? (
              <div style={{ padding: '40px', textAlign: 'center', opacity: 0.5 }}>No hay proveedores registrados</div>
+          ) : filteredSuppliers.length === 0 ? (
+             <div style={{ padding: '40px', textAlign: 'center', opacity: 0.6 }}>No se encontraron coincidencias para "{searchTerm}"</div>
           ) : (
-            suppliers.map(s => (
+            filteredSuppliers.map(s => (
               <div key={s.id} className="terminal-row" style={{ '--columns': '1.5fr 1fr 1fr 1.2fr 0.8fr' }}>
                 <span className="font-medium">{s.nombre}</span>
                 <span>{s.contacto || 'N/A'}</span>

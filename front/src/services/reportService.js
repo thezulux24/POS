@@ -26,6 +26,20 @@ export const reportService = {
     });
     return response.data;
   },
+  getSalesByPeriod: async (period = 'day', points) => {
+    const response = await axios.get(`${API_URL}/dashboard/sales-by-period`, {
+      params: { period, points },
+      headers: getAuthHeader(),
+    });
+    return response.data;
+  },
+  getTopProductsByPeriod: async (period = 'day', limit = 5) => {
+    const response = await axios.get(`${API_URL}/dashboard/top-products-by-period`, {
+      params: { period, limit },
+      headers: getAuthHeader(),
+    });
+    return response.data;
+  },
   getDetailedReport: async (startDate, endDate) => {
     const response = await axios.get(`${API_URL}/detailed`, {
       params: { startDate, endDate },

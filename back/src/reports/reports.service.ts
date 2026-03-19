@@ -1,10 +1,52 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { subDays, startOfDay, endOfDay, format } from 'date-fns';
+import {
+  subDays,
+  subWeeks,
+  subMonths,
+  startOfDay,
+  endOfDay,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  format,
+} from 'date-fns';
+
+type ReportPeriod = 'day' | 'week' | 'month';
 
 @Injectable()
 export class ReportsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private normalizePeriod(period?: string): ReportPeriod {
+    if (period === 'week' || period === 'month') {
+      return period;
+    }
+    return 'day';
+  }
+
+  private resolveCurrentPeriodRange(period: ReportPeriod) {
+    const now = new Date();
+    if (period === 'week') {
+      return {
+        start: startOfWeek(now, { weekStartsOn: 1 }),
+        end: endOfWeek(now, { weekStartsOn: 1 }),
+      };
+    }
+
+    if (period === 'month') {
+      return {
+        start: startOfMonth(now),
+        end: endOfMonth(now),
+      };
+    }
+
+    return {
+      start: startOfDay(now),
+      end: endOfDay(now),
+    };
+  }
 
   async getDashboardStats() {
     const [totalProducts, activeUsers, lowStock] = await Promise.all([
@@ -109,6 +151,108 @@ export class ReportsService {
     );
 
     return products;
+  }
+
+  async getSalesByPeriod(period?: string, points?: number) {
+    const normalizedPeriod = this.normalizePeriod(period);
+
+    const defaultPointsByPeriod: Record<ReportPeriod, number> = {
+      day: 7,
+      week: 8,
+      month: 6,
+    };
+
+    const maxPoints = 24;
+    const selectedPoints = Math.min(
+      Math.max(points || defaultPointsByPeriod[normalizedPeriod], 1),
+      maxPoints,
+    );
+
+    const result: { label: string; total: number; salesCount: number }[] = [];
+
+    for (let i = selectedPoints - 1; i >= 0; i--) {
+      let start: Date;
+      let end: Date;
+      let label: string;
+
+      if (normalizedPeriod === 'week') {
+        const weekDate = subWeeks(new Date(), i);
+        start = startOfWeek(weekDate, { weekStartsOn: 1 });
+        end = endOfWeek(weekDate, { weekStartsOn: 1 });
+        label = format(start, "dd MMM");
+      } else if (normalizedPeriod === 'month') {
+        const monthDate = subMonths(new Date(), i);
+        start = startOfMonth(monthDate);
+        end = endOfMonth(monthDate);
+        label = format(start, 'MMM yyyy');
+      } else {
+        const dayDate = subDays(new Date(), i);
+        start = startOfDay(dayDate);
+        end = endOfDay(dayDate);
+        label = format(start, 'dd MMM');
+      }
+
+      const stats = await this.prisma.sale.aggregate({
+        where: {
+          fecha: { gte: start, lte: end },
+          estado: 'COMPLETED',
+        },
+        _sum: { total: true },
+        _count: { id: true },
+      });
+
+      result.push({
+        label,
+        total: Number(stats._sum.total || 0),
+        salesCount: stats._count.id,
+      });
+    }
+
+    return {
+      period: normalizedPeriod,
+      points: selectedPoints,
+      data: result,
+    };
+  }
+
+  async getTopProductsByPeriod(period?: string, limit = 5) {
+    const normalizedPeriod = this.normalizePeriod(period);
+    const { start, end } = this.resolveCurrentPeriodRange(normalizedPeriod);
+
+    const topItems = await this.prisma.saleItem.groupBy({
+      by: ['productId'],
+      where: {
+        sale: {
+          fecha: { gte: start, lte: end },
+          estado: 'COMPLETED',
+        },
+      },
+      _sum: { cantidad: true, subtotal: true },
+      orderBy: { _sum: { cantidad: 'desc' } },
+      take: limit,
+    });
+
+    const productIds = topItems.map((item) => item.productId);
+    const products = await this.prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: { id: true, nombre: true },
+    });
+
+    const productById = new Map(products.map((p) => [p.id, p.nombre]));
+
+    return {
+      period: normalizedPeriod,
+      range: {
+        start: format(start, 'yyyy-MM-dd'),
+        end: format(end, 'yyyy-MM-dd'),
+      },
+      items: topItems.map((item) => ({
+        productId: item.productId,
+        nombre: productById.get(item.productId) || 'Desconocido',
+        cantidadVendida: item._sum.cantidad || 0,
+        ingresosTotales: Number(item._sum.subtotal || 0),
+      })),
+    };
   }
 
   async getDetailedReport(startDate: string, endDate: string) {

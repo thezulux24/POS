@@ -14,6 +14,7 @@ import { userService } from '../../services/userService';
 
 const UsersView = () => {
   const [users, setUsers] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
@@ -47,6 +48,12 @@ const UsersView = () => {
   useEffect(() => {
     loadUsers();
   }, []);
+
+  const filteredUsers = users.filter((user) => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return true;
+    return user.nombre?.toLowerCase().includes(term);
+  });
 
   const openModal = (user = null) => {
     setSelectedUser(user);
@@ -130,6 +137,21 @@ const UsersView = () => {
            </button>
         </div>
 
+        <div style={{ maxWidth: '420px', marginTop: '8px' }}>
+          <label className="terminal-field-group">
+            <span className="terminal-mini-label">Buscar vendedor por nombre</span>
+            <div className="terminal-field">
+              <Search size={14} />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Escribe nombre completo o parcial"
+              />
+            </div>
+          </label>
+        </div>
+
         <div className="terminal-table">
           <div className="terminal-head" style={{ '--columns': '1.5fr 1.5fr 1fr 1fr 1fr' }}>
             <span>Nombre</span>
@@ -140,8 +162,10 @@ const UsersView = () => {
           </div>
           {loading ? (
              <div style={{ padding: '40px', textAlign: 'center' }}>Cargando personal...</div>
+          ) : filteredUsers.length === 0 ? (
+             <div style={{ padding: '40px', textAlign: 'center', opacity: 0.6 }}>No se encontraron coincidencias para "{searchTerm}"</div>
           ) : (
-            users.map(u => (
+            filteredUsers.map(u => (
               <div key={u.id} className="terminal-row" style={{ '--columns': '1.5fr 1.5fr 1fr 1fr 1fr' }}>
                 <span className="font-medium">{u.nombre}</span>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
